@@ -1,0 +1,1529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Junction — build AI pipelines as graphs, leave with the code</title>
+<meta name="description" content="Describe an AI pipeline in readable YAML or draw it as a graph. Run it against your own API key, then export plain Python you own. No runtime to depend on. Free." />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#0a0d14" />
+<style>
+  :root{
+    --bg:#0a0d14; --panel:#0e131d; --raise:#141b28; --line:rgba(255,255,255,.09);
+    --ink:#e8eef8; --dim:#93a1bb; --faint:#66748e;
+    --accent:#7cc4ff; --good:#6fdc9a; --warn:#f0c674; --bad:#f0797a; --violet:#a99bf5;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+    --ease:cubic-bezier(.22,1,.36,1);
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%; overflow:hidden}
+  body{background:var(--bg); color:var(--ink); font-size:14px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+    display:flex; flex-direction:column}
+  button,input,select,textarea{font:inherit; color:inherit}
+  button{cursor:pointer; background:none; border:0}
+
+  /* ---------- top bar ---------- */
+  header{display:flex; align-items:center; gap:10px; padding:9px 12px;
+    border-bottom:1px solid var(--line); background:var(--panel); flex:none}
+  .logo{font-weight:250; letter-spacing:.22em; text-indent:.22em; font-size:15px;
+    background:linear-gradient(180deg,#fff,#8fb8e8); -webkit-background-clip:text;
+    background-clip:text; -webkit-text-fill-color:transparent; white-space:nowrap}
+  .sep{width:1px; height:20px; background:var(--line); flex:none}
+  .btn{border:1px solid var(--line); background:var(--raise); color:var(--dim);
+    border-radius:8px; padding:7px 12px; font-size:12.5px; display:flex; align-items:center;
+    gap:6px; transition:.14s var(--ease); white-space:nowrap}
+  .btn:hover{color:var(--ink); border-color:rgba(255,255,255,.2)}
+  .btn:disabled{opacity:.4; cursor:not-allowed}
+  .btn svg{width:14px; height:14px; flex:none}
+  .btn.go{background:linear-gradient(180deg,#8fd0ff,#5fa8e8); color:#06101c; border-color:transparent; font-weight:600}
+  .btn.go:hover{filter:brightness(1.07)}
+  .grow{margin-left:auto}
+  .chip{font-size:11px; color:var(--faint); border:1px solid var(--line); border-radius:999px;
+    padding:4px 9px; white-space:nowrap}
+  .chip b{color:var(--dim); font-weight:600}
+
+  /* ---------- split layout ---------- */
+  main{flex:1; display:flex; min-height:0}
+  .pane{display:flex; flex-direction:column; min-width:0; min-height:0}
+  #left{width:42%; border-right:1px solid var(--line); background:var(--panel)}
+  #right{flex:1; position:relative; background:
+    radial-gradient(circle at 1px 1px, rgba(255,255,255,.055) 1px, transparent 0) 0 0/22px 22px}
+  #drag{width:5px; cursor:col-resize; background:transparent; flex:none; margin:0 -2px; z-index:5}
+  #drag:hover{background:rgba(124,196,255,.25)}
+
+  .tabs{display:flex; gap:2px; padding:6px 8px 0; border-bottom:1px solid var(--line); flex:none}
+  .tab{padding:7px 13px; font-size:12.5px; color:var(--faint); border-radius:8px 8px 0 0;
+    border:1px solid transparent; border-bottom:0; transition:.14s}
+  .tab:hover{color:var(--dim)}
+  .tab.on{color:var(--ink); background:var(--raise); border-color:var(--line)}
+
+  .editwrap{flex:1; position:relative; min-height:0; display:flex}
+  #gutter{padding:12px 0 12px 12px; font-family:var(--mono); font-size:12.5px; line-height:1.65;
+    color:var(--faint); text-align:right; user-select:none; overflow:hidden; flex:none; opacity:.5}
+  #yaml{flex:1; padding:12px 14px 12px 10px; background:none; border:0; resize:none; outline:none;
+    font-family:var(--mono); font-size:12.5px; line-height:1.65; color:var(--ink);
+    white-space:pre; overflow:auto; tab-size:2; caret-color:var(--accent)}
+  #yaml::selection{background:rgba(124,196,255,.28)}
+
+  /* ---------- problems ---------- */
+  #problems{flex:none; max-height:150px; overflow:auto; border-top:1px solid var(--line);
+    background:#0c1119; display:none}
+  #problems.on{display:block}
+  .prob{display:flex; gap:9px; padding:8px 12px; font-size:12px; border-bottom:1px solid var(--line);
+    cursor:pointer; align-items:flex-start}
+  .prob:hover{background:var(--raise)}
+  .prob .ln{color:var(--faint); font-family:var(--mono); flex:none; min-width:26px}
+  .prob.err .dot{background:var(--bad)} .prob.warn .dot{background:var(--warn)}
+  .prob .dot{width:7px; height:7px; border-radius:50%; margin-top:5px; flex:none}
+  .prob span{color:var(--dim)}
+
+  /* ---------- canvas ---------- */
+  #canvas{position:absolute; inset:0; overflow:hidden; touch-action:none}
+  #world{position:absolute; left:0; top:0; transform-origin:0 0; will-change:transform}
+  /* the same origin as #world, or the wires scale about their own centre and
+     drift away from the boxes they connect */
+  #wires{position:absolute; left:0; top:0; width:100%; height:100%;
+    transform-origin:0 0; overflow:visible; pointer-events:none}
+  .node{position:absolute; width:210px; background:var(--panel); border:1px solid var(--line);
+    border-radius:12px; box-shadow:0 12px 30px -18px #000; cursor:grab; user-select:none;
+    transition:border-color .14s, box-shadow .14s}
+  .node:hover{border-color:rgba(255,255,255,.22)}
+  .node.sel{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 14px 34px -16px #000}
+  .node.dragging{cursor:grabbing; z-index:20}
+  .node .hd{display:flex; align-items:center; gap:7px; padding:8px 10px; border-bottom:1px solid var(--line)}
+  .node .hd svg{width:14px; height:14px; flex:none}
+  .node .nm{font-size:12.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .node .ty{font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:.08em; margin-left:auto}
+  .node .bd{padding:8px 10px; font-size:11.5px; color:var(--faint); font-family:var(--mono);
+    line-height:1.5; max-height:52px; overflow:hidden}
+  .node.t-prompt .hd svg{color:var(--accent)}
+  .node.t-branch .hd svg{color:var(--warn)}
+  .node.t-each .hd svg{color:var(--violet)}
+  .node.t-text .hd svg{color:var(--dim)}
+  .node.t-input .hd svg{color:var(--good)}
+  .node.t-output .hd svg{color:var(--good)}
+  .node.running{border-color:var(--accent); animation:pulse 1.1s infinite}
+  .node.done{border-color:rgba(111,220,154,.55)}
+  .node.failed{border-color:var(--bad)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(124,196,255,.35)}50%{box-shadow:0 0 0 6px rgba(124,196,255,0)}}
+  .port{position:absolute; width:11px; height:11px; border-radius:50%; background:var(--raise);
+    border:1.5px solid var(--faint); right:-6px; top:50%; margin-top:-5px; cursor:crosshair; z-index:2}
+  .port:hover{border-color:var(--accent); background:var(--accent)}
+  .port.in{left:-6px; right:auto; cursor:default}
+  .wire{fill:none; stroke:rgba(255,255,255,.2); stroke-width:1.6}
+  .wire.hot{stroke:var(--accent); stroke-width:2}
+  .wire.flow{stroke:var(--good); stroke-width:2.2; stroke-dasharray:5 4; animation:march .6s linear infinite}
+  @keyframes march{to{stroke-dashoffset:-18}}
+
+  .empty{position:absolute; inset:0; display:grid; place-items:center; text-align:center;
+    color:var(--faint); font-size:13px; pointer-events:none; padding:30px; line-height:1.7}
+
+  #zoom{position:absolute; left:12px; bottom:12px; display:flex; gap:4px; z-index:6}
+  #zoom .btn{padding:6px 9px}
+
+  /* ---------- run drawer ---------- */
+  #run{position:absolute; right:12px; top:12px; bottom:12px; width:330px; background:var(--panel);
+    border:1px solid var(--line); border-radius:13px; display:none; flex-direction:column;
+    box-shadow:0 24px 60px -24px #000; z-index:8}
+  #run.on{display:flex}
+  #run .rh{display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line)}
+  #run .rh b{font-size:12.5px}
+  #run .rb{flex:1; overflow:auto; padding:6px}
+  .step{border:1px solid var(--line); border-radius:9px; margin-bottom:6px; overflow:hidden}
+  .step .sh{display:flex; align-items:center; gap:7px; padding:7px 9px; font-size:12px; cursor:pointer}
+  .step .sh .nm{font-weight:600}
+  .step .sh .ms{margin-left:auto; color:var(--faint); font-size:11px; font-variant-numeric:tabular-nums}
+  .step .out{padding:0 9px 9px; font-family:var(--mono); font-size:11.5px; color:var(--dim);
+    white-space:pre-wrap; word-break:break-word; max-height:190px; overflow:auto; display:none}
+  .step.open .out{display:block}
+  .dotst{width:7px; height:7px; border-radius:50%; flex:none; background:var(--faint)}
+  .dotst.run{background:var(--accent); animation:pulse 1.1s infinite}
+  .dotst.ok{background:var(--good)} .dotst.err{background:var(--bad)}
+
+  /* ---------- modal ---------- */
+  .modal{position:fixed; inset:0; z-index:40; background:rgba(4,7,12,.72); display:none;
+    align-items:center; justify-content:center; padding:20px}
+  .modal.on{display:flex}
+  .sheet{background:var(--panel); border:1px solid var(--line); border-radius:15px; width:100%;
+    max-width:540px; max-height:86dvh; display:flex; flex-direction:column; overflow:hidden;
+    box-shadow:0 40px 90px -30px #000}
+  .sheet h2{font-size:14px; padding:14px 16px; border-bottom:1px solid var(--line); font-weight:600}
+  .sheet .body{padding:16px; overflow:auto}
+  .sheet .foot{padding:12px 16px; border-top:1px solid var(--line); display:flex; gap:8px; justify-content:flex-end}
+  .field{margin-bottom:13px}
+  .field label{display:block; font-size:11.5px; color:var(--dim); margin-bottom:5px; font-weight:600}
+  .field input,.field select{width:100%; background:var(--bg); border:1px solid var(--line);
+    border-radius:9px; padding:9px 11px; font-size:12.5px; font-family:var(--mono); outline:none}
+  .field input:focus,.field select:focus{border-color:var(--accent)}
+  .field .hint{font-size:11px; color:var(--faint); margin-top:5px; line-height:1.55}
+  .note{background:rgba(240,198,116,.08); border:1px solid rgba(240,198,116,.25); color:#e8d5a8;
+    border-radius:10px; padding:10px 12px; font-size:11.5px; line-height:1.6; margin-bottom:14px}
+  pre.code{background:var(--bg); border:1px solid var(--line); border-radius:10px; padding:12px;
+    font-family:var(--mono); font-size:11.5px; line-height:1.6; overflow:auto; max-height:52vh;
+    color:var(--dim); white-space:pre}
+  .exlist{display:grid; gap:7px}
+  .ex{text-align:left; border:1px solid var(--line); background:var(--raise); border-radius:10px;
+    padding:11px 13px; transition:.14s}
+  .ex:hover{border-color:var(--accent)}
+  .ex b{display:block; font-size:12.5px; margin-bottom:3px}
+  .ex span{font-size:11.5px; color:var(--faint); line-height:1.5}
+
+  #toast{position:fixed; left:50%; bottom:22px; transform:translateX(-50%) translateY(10px);
+    background:var(--raise); border:1px solid var(--line); border-radius:10px; padding:9px 15px;
+    font-size:12.5px; opacity:0; pointer-events:none; transition:.22s var(--ease); z-index:50}
+  #toast.on{opacity:1; transform:translateX(-50%)}
+
+  :focus-visible{outline:1.5px solid var(--accent); outline-offset:2px}
+  @media (max-width:820px){
+    #left{width:100%; border-right:0}
+    main{flex-direction:column}
+    #right{min-height:44vh; border-top:1px solid var(--line)}
+    #drag{display:none}
+    #run{left:12px; width:auto}
+    .hidesm{display:none}
+  }
+  @media (prefers-reduced-motion:reduce){*{animation-duration:.01ms!important; transition-duration:.01ms!important}}
+</style>
+<link rel="canonical" href="https://rahulatrkm.github.io/junction/" />
+<meta property="og:title" content="Junction — build AI pipelines as graphs, leave with the code" />
+<meta property="og:description" content="Readable YAML or a drawn graph, whichever you prefer. Run it with your own key, export plain Python you own. No runtime to depend on." />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://rahulatrkm.github.io/junction/" />
+<meta property="og:image" content="https://rahulatrkm.github.io/junction/og.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta name="twitter:card" content="summary_large_image" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230a0d14'/><g stroke='%237cc4ff' stroke-width='2.2' fill='none'><path d='M8 8h6M18 8h6M8 24h6M18 24h6'/><circle cx='16' cy='16' r='4'/><path d='M16 12V8M16 20v4'/></g></svg>" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Junction",
+  "url": "https://rahulatrkm.github.io/junction/",
+  "description": "Describe an AI pipeline in readable YAML or draw it as a graph. Run it against your own API key, then export plain Python you own. No runtime to depend on. Free.",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Any modern web browser",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  },
+  "author": {
+    "@type": "Person",
+    "name": "Rahul",
+    "url": "https://rahulatrkm.github.io/"
+  }
+}
+</script>
+</head>
+<body>
+<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Junction — build AI pipelines as graphs and export plain Python</h1>
+
+<header>
+  <span class="logo">JUNCTION</span>
+  <span class="sep hidesm"></span>
+  <button class="btn" id="bExamples"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h16M4 19h10"/></svg> Examples</button>
+  <button class="btn" id="bAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> Add step</button>
+  <span class="grow"></span>
+  <span class="chip hidesm" id="stat">&mdash;</span>
+  <button class="btn" id="bExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> <span class="hidesm">Export Python</span></button>
+  <button class="btn" id="bKey"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4M15 12v3"/></svg></button>
+  <button class="btn go" id="bRun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4l13 8-13 8z"/></svg> Run</button>
+</header>
+
+<main>
+  <section class="pane" id="left">
+    <div class="tabs">
+      <button class="tab on" data-view="yaml">Pipeline</button>
+      <button class="tab" data-view="inputs">Inputs</button>
+    </div>
+    <div class="editwrap" id="wrapYaml">
+      <div id="gutter"></div>
+      <textarea id="yaml" spellcheck="false" autocomplete="off" autocapitalize="off"
+        aria-label="Pipeline definition in YAML"></textarea>
+    </div>
+    <div class="editwrap" id="wrapInputs" style="display:none">
+      <div class="sheet-body" id="inputsBody" style="padding:14px; overflow:auto; width:100%"></div>
+    </div>
+    <div id="problems"></div>
+  </section>
+
+  <div id="drag"></div>
+
+  <section class="pane" id="right">
+    <div id="canvas">
+      <svg id="wires"></svg>
+      <div id="world"></div>
+    </div>
+    <div class="empty" id="empty">Nothing to draw yet.<br/>Write a step on the left, or press <b>Add step</b>.</div>
+    <div id="zoom">
+      <button class="btn" id="zOut">&minus;</button>
+      <button class="btn" id="zFit">Fit</button>
+      <button class="btn" id="zIn">+</button>
+    </div>
+    <aside id="run">
+      <div class="rh"><b>Run</b><span class="chip" id="runStat">idle</span>
+        <span class="grow"></span>
+        <button class="btn" id="runClose">Close</button></div>
+      <div class="rb" id="runBody"></div>
+    </aside>
+  </section>
+</main>
+
+<div class="modal" id="mKey"><div class="sheet">
+  <h2>Model connection</h2>
+  <div class="body">
+    <div class="note"><b>Your key stays in this browser.</b> It is kept in local storage on this
+      device and sent only to the endpoint below. It never reaches me &mdash; there is no server here.
+      Because the call is made from the page, only use a key you are willing to have on this machine.</div>
+    <div class="field">
+      <label for="fBase">Endpoint</label>
+      <select id="fBase">
+        <option value="https://api.openai.com/v1">OpenAI &mdash; api.openai.com</option>
+        <option value="https://openrouter.ai/api/v1">OpenRouter</option>
+        <option value="https://api.groq.com/openai/v1">Groq</option>
+        <option value="http://localhost:11434/v1">Ollama on this machine &mdash; no key needed</option>
+        <option value="custom">Something else&hellip;</option>
+      </select>
+      <div class="hint">Anything that speaks the OpenAI chat-completions API will work.</div>
+    </div>
+    <div class="field" id="customWrap" style="display:none">
+      <label for="fCustom">Custom endpoint</label>
+      <input id="fCustom" placeholder="https://&hellip;/v1" spellcheck="false" />
+    </div>
+    <div class="field">
+      <label for="fKey">API key</label>
+      <input id="fKey" type="password" placeholder="sk-&hellip;" spellcheck="false" autocomplete="off" />
+      <div class="hint">Leave blank for Ollama.</div>
+    </div>
+    <div class="field">
+      <label for="fModel">Default model</label>
+      <input id="fModel" placeholder="gpt-4o-mini" spellcheck="false" />
+      <div class="hint">Any step can override this with its own <code>model:</code>.</div>
+    </div>
+  </div>
+  <div class="foot">
+    <button class="btn" id="keyForget">Forget key</button>
+    <button class="btn go" id="keySave">Save</button>
+  </div>
+</div></div>
+
+<div class="modal" id="mExport"><div class="sheet">
+  <h2>Python &mdash; yours to keep</h2>
+  <div class="body">
+    <div class="note">This is plain Python. It needs the <code>openai</code> package and nothing
+      from Junction. Delete this page tomorrow and your pipeline still runs.</div>
+    <pre class="code" id="exportCode"></pre>
+  </div>
+  <div class="foot">
+    <button class="btn" id="expCopy">Copy</button>
+    <button class="btn go" id="expDownload">Download .py</button>
+  </div>
+</div></div>
+
+<div class="modal" id="mEx"><div class="sheet">
+  <h2>Start from an example</h2>
+  <div class="body"><div class="exlist" id="exList"></div></div>
+  <div class="foot"><button class="btn" id="exClose">Close</button></div>
+</div></div>
+
+<div id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================ yaml
+   A deliberately small YAML subset: nested maps, lines lists, quoted and plain
+   scalars, and | block text for prompts. Enough to describe a pipeline and
+   little enough to reason about. Every key remembers its line so a problem can
+   point at the place that caused it. */
+
+function parseYAML(text) {
+  const lines = String(text ?? "").replace(/\t/g, "  ").split(/\r?\n/);
+  const errors = [];
+  const keyLine = new Map();          // "nodes.classify" -> line number (1 based)
+  let i = 0;
+
+  const indentOf = s => s.match(/^ */)[0].length;
+  const blank = s => !s.trim() || /^\s*#/.test(s);
+  const skip = () => { while (i < lines.length && blank(lines[i])) i++; };
+  const fail = (msg) => errors.push({ line: i + 1, msg });
+
+  function stripComment(s) {
+    let q = null;
+    for (let k = 0; k < s.length; k++) {
+      const c = s[k];
+      if (q) { if (c === q && s[k - 1] !== "\\") q = null; continue; }
+      if (c === '"' || c === "'") { q = c; continue; }
+      if (c === "#" && (k === 0 || /\s/.test(s[k - 1]))) return s.slice(0, k);
+    }
+    return s;
+  }
+
+  function scalar(raw) {
+    const s = stripComment(raw).trim();
+    if (s === "" || s === "~" || s === "null") return null;
+    if (s === "true") return true;
+    if (s === "false") return false;
+    if (/^-?\d+$/.test(s)) return parseInt(s, 10);
+    if (/^-?\d*\.\d+$/.test(s)) return parseFloat(s);
+    if ((s[0] === '"' && s.at(-1) === '"') || (s[0] === "'" && s.at(-1) === "'")) {
+      const body = s.slice(1, -1);
+      return s[0] === '"' ? body.replace(/\\n/g, "\n").replace(/\\"/g, '"').replace(/\\\\/g, "\\") : body;
+    }
+    if (s[0] === "[" && s.at(-1) === "]") {
+      const inner = s.slice(1, -1).trim();
+      return inner ? inner.split(",").map(x => scalar(x)) : [];
+    }
+    return s;
+  }
+
+  // | keeps newlines, > folds them into spaces; both drop the common indent
+  function blockText(marker, parentIndent) {
+    const out = [];
+    let base = null;
+    while (i < lines.length) {
+      const ln = lines[i];
+      if (ln.trim() === "") { out.push(""); i++; continue; }
+      const ind = indentOf(ln);
+      if (ind <= parentIndent) break;
+      if (base === null) base = ind;
+      out.push(ln.slice(Math.min(base, ind)));
+      i++;
+    }
+    while (out.length && out.at(-1) === "") out.pop();
+    if (marker === ">") {
+      return out.reduce((acc, l) => !l ? acc + "\n" : acc + (acc && !acc.endsWith("\n") ? " " : "") + l, "").trim();
+    }
+    return out.join("\n");
+  }
+
+  function parseValue(rest, indent, path) {
+    const t = stripComment(rest).trim();
+    if (t === "|" || t === ">" || t === "|-" || t === ">-") { i++; return blockText(t[0], indent); }
+    if (t !== "") { i++; return scalar(rest); }
+    i++;
+    skip();
+    if (i >= lines.length || indentOf(lines[i]) <= indent) return null;
+    return parseNode(indentOf(lines[i]), path);
+  }
+
+  function parseList(indent, path) {
+    const arr = [];
+    while (i < lines.length) {
+      if (blank(lines[i])) { i++; continue; }
+      const ind = indentOf(lines[i]);
+      if (ind < indent) break;
+      if (ind > indent) { fail("unexpected indent"); i++; continue; }
+      const m = lines[i].match(/^\s*-(\s+(.*))?$/);
+      if (!m) break;
+      const rest = m[2] ?? "";
+      if (rest.trim() === "") {
+        i++; skip();
+        arr.push(i < lines.length && indentOf(lines[i]) > indent ? parseNode(indentOf(lines[i]), path) : null);
+      } else if (/^[\w."'-]+\s*:/.test(rest.trim())) {
+        // a map that starts on the dash line, so it is indented by the dash width
+        lines[i] = " ".repeat(ind + 2) + rest;
+        arr.push(parseNode(ind + 2, path));
+      } else {
+        arr.push(scalar(rest)); i++;
+      }
+    }
+    return arr;
+  }
+
+  function parseMap(indent, path) {
+    const obj = {};
+    while (i < lines.length) {
+      if (blank(lines[i])) { i++; continue; }
+      const ind = indentOf(lines[i]);
+      if (ind < indent) break;
+      if (ind > indent) { fail("unexpected indent"); i++; continue; }
+      const m = lines[i].match(/^\s*("[^"]+"|'[^']+'|[^:#]+?)\s*:(.*)$/);
+      if (!m) { fail("expected 'key: value'"); i++; continue; }
+      let key = m[1].trim();
+      if ((key[0] === '"' && key.at(-1) === '"') || (key[0] === "'" && key.at(-1) === "'")) key = key.slice(1, -1);
+      const full = path ? path + "." + key : key;
+      keyLine.set(full, i + 1);
+      if (Object.prototype.hasOwnProperty.call(obj, key)) fail(`duplicate key "${key}"`);
+      obj[key] = parseValue(m[2], ind, full);
+    }
+    return obj;
+  }
+
+  function parseNode(indent, path) {
+    skip();
+    if (i >= lines.length) return null;
+    return /^\s*-(\s|$)/.test(lines[i]) ? parseList(indent, path) : parseMap(indent, path);
+  }
+
+  skip();
+  const data = i >= lines.length ? {} : parseNode(indentOf(lines[i]), "");
+  return { data: data && typeof data === "object" ? data : {}, errors, keyLine };
+}
+
+function toYAML(value, indent = 0) {
+  const pad = " ".repeat(indent);
+  if (value === null || value === undefined) return "";
+  if (Array.isArray(value)) {
+    if (!value.length) return pad + "[]";
+    return value.map(v => {
+      if (v && typeof v === "object") {
+        const body = toYAML(v, indent + 2);
+        return pad + "- " + body.slice(indent + 2);
+      }
+      return pad + "- " + plainScalar(v);
+    }).join("\n");
+  }
+  if (typeof value !== "object") return pad + plainScalar(value);
+
+  const out = [];
+  for (const [k, v] of Object.entries(value)) {
+    if (v === null || v === undefined) { out.push(`${pad}${k}:`); continue; }
+    if (typeof v === "string" && v.includes("\n")) {
+      out.push(`${pad}${k}: |`);
+      for (const ln of v.split("\n")) out.push(ln ? " ".repeat(indent + 2) + ln : "");
+    } else if (v && typeof v === "object" && !Array.isArray(v) && Object.keys(v).length === 0) {
+      out.push(`${pad}${k}: {}`);
+    } else if (v && typeof v === "object") {
+      out.push(`${pad}${k}:`);
+      out.push(toYAML(v, indent + 2));
+    } else {
+      out.push(`${pad}${k}: ${plainScalar(v)}`);
+    }
+  }
+  return out.join("\n");
+}
+
+function plainScalar(v) {
+  if (v === null || v === undefined) return "";
+  if (typeof v === "boolean" || typeof v === "number") return String(v);
+  const s = String(v);
+  // quote only when the plain form would be read back as something else
+  if (s === "" || /^[\s]|[\s]$/.test(s) || /^[-?:,[\]{}#&*!|>'"%@`]/.test(s) ||
+      /: |#/.test(s) || /^(true|false|null|~)$/i.test(s) || /^-?\d*\.?\d+$/.test(s)) {
+    return '"' + s.replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+  }
+  return s;
+}
+
+/* ============================================================ graph
+   Edges are not written down anywhere. They are read out of the {{references}}
+   in each step, so the picture and the text can never disagree with each other. */
+
+const TYPES = {
+  prompt: { label: "Prompt", needs: ["prompt"] },
+  text:   { label: "Text",   needs: ["text"] },
+  branch: { label: "Branch", needs: ["on"] },
+  each:   { label: "Each",   needs: ["over", "prompt"] },
+};
+const REF_RE = /\{\{\s*([a-zA-Z_][\w]*)\s*\}\}/g;
+
+function refsIn(str) {
+  const out = [];
+  if (typeof str !== "string") return out;
+  let m;
+  REF_RE.lastIndex = 0;
+  while ((m = REF_RE.exec(str))) out.push(m[1]);
+  return out;
+}
+
+function templateFields(step) {
+  return [step.prompt, step.system, step.text, step.value].filter(v => typeof v === "string");
+}
+
+/* Turns the parsed document into something drawable and runnable, collecting
+   every problem rather than throwing on the first one. */
+function buildGraph(doc) {
+  const problems = [];
+  const err = (msg, key) => problems.push({ level: "error", msg, key });
+  const warn = (msg, key) => problems.push({ level: "warn", msg, key });
+
+  const inputs = Array.isArray(doc.inputs) ? doc.inputs.filter(x => typeof x === "string")
+    : typeof doc.inputs === "string" ? [doc.inputs] : [];
+  const rawSteps = (doc.steps && typeof doc.steps === "object" && !Array.isArray(doc.steps)) ? doc.steps : {};
+  if (!doc.steps) err("no steps: block, so there is nothing to run", "steps");
+
+  const names = Object.keys(rawSteps);
+  const known = new Set([...inputs, ...names]);
+  for (const n of inputs) if (names.includes(n)) err(`"${n}" is both an input and a step`, "inputs");
+
+  const nodes = inputs.map(name => ({ name, type: "input", step: {}, deps: [], routes: [] }));
+
+  for (const name of names) {
+    const step = rawSteps[name] && typeof rawSteps[name] === "object" ? rawSteps[name] : {};
+    if (!/^[a-zA-Z_]\w*$/.test(name)) err(`"${name}" is not a usable name \u2014 letters, digits and _ only`, "steps." + name);
+    let type = step.type || (step.text !== undefined ? "text" : step.over !== undefined ? "each"
+      : step.on !== undefined ? "branch" : "prompt");
+    if (!TYPES[type]) { err(`"${name}" has unknown type "${step.type}"`, "steps." + name); type = "prompt"; }
+    for (const need of TYPES[type].needs) {
+      if (step[need] === undefined || step[need] === null || String(step[need]).trim() === "")
+        err(`"${name}" is a ${type} step and needs ${need}:`, "steps." + name);
+    }
+
+    const deps = new Set();
+    for (const t of templateFields(step)) for (const r of refsIn(t)) deps.add(r);
+    if (type === "branch" && typeof step.on === "string") deps.add(step.on.trim());
+    if (type === "each" && typeof step.over === "string") deps.add(step.over.trim());
+    deps.delete("item");                       // each binds item itself
+
+    const routes = [];
+    if (type === "branch") {
+      const when = step.when && typeof step.when === "object" ? step.when : {};
+      for (const [val, target] of Object.entries(when)) routes.push({ on: String(val), target: String(target) });
+      if (step.else) routes.push({ on: "else", target: String(step.else) });
+      if (!routes.length) err(`"${name}" branches but has no when: targets`, "steps." + name);
+    }
+
+    for (const d of deps) if (!known.has(d)) err(`"${name}" refers to {{${d}}}, which does not exist`, "steps." + name);
+    for (const r of routes) if (!names.includes(r.target)) err(`"${name}" routes to "${r.target}", which is not a step`, "steps." + name);
+
+    nodes.push({ name, type, step, deps: [...deps].filter(d => known.has(d)), routes });
+  }
+
+  const byName = new Map(nodes.map(n => [n.name, n]));
+  const edges = [];
+  for (const n of nodes) {
+    for (const d of n.deps) if (byName.has(d)) edges.push({ from: d, to: n.name, kind: "data" });
+    for (const r of n.routes) if (byName.has(r.target)) edges.push({ from: n.name, to: r.target, kind: "route", label: r.on });
+  }
+
+  const order = topoSort(nodes, edges, err);
+
+  const output = typeof doc.output === "string" ? doc.output.trim() : "";
+  if (!output) warn("no output: line, so nothing is returned at the end", "output");
+  else if (!byName.has(output)) err(`output: "${output}" is not a step`, "output");
+
+  for (const n of nodes) {
+    if (n.type === "input") continue;
+    const feedsSomething = edges.some(e => e.from === n.name);
+    const isChosen = edges.some(e => e.kind === "route" && e.to === n.name);
+    if (!feedsSomething && !isChosen && n.name !== output) warn(`nothing reads "${n.name}"`, "steps." + n.name);
+  }
+
+  return { name: doc.name || "pipeline", inputs, nodes, edges, order, output, problems, byName };
+}
+
+function topoSort(nodes, edges, err) {
+  const incoming = new Map(nodes.map(n => [n.name, 0]));
+  const out = new Map(nodes.map(n => [n.name, []]));
+  for (const e of edges) {
+    // route edges order too: a step the branch chooses must come after the branch,
+    // otherwise it runs before anything has decided whether it should
+    if (!incoming.has(e.to) || !out.has(e.from)) continue;
+    incoming.set(e.to, incoming.get(e.to) + 1);
+    out.get(e.from).push(e.to);
+  }
+  const queue = nodes.filter(n => incoming.get(n.name) === 0).map(n => n.name);
+  const sorted = [];
+  while (queue.length) {
+    const n = queue.shift();
+    sorted.push(n);
+    for (const m of out.get(n) || []) {
+      incoming.set(m, incoming.get(m) - 1);
+      if (incoming.get(m) === 0) queue.push(m);
+    }
+  }
+  if (sorted.length !== nodes.length) {
+    const stuck = nodes.map(n => n.name).filter(n => !sorted.includes(n));
+    err(`these steps feed each other in a loop: ${stuck.join(" \u2192 ")}`, "steps." + stuck[0]);
+  }
+  return sorted;
+}
+
+/* Depth is the longest path from an input, which keeps every arrow pointing
+   right and stops a late step being drawn beside something it depends on. */
+function layout(graph) {
+  const depth = new Map();
+  for (const name of graph.order) {
+    const n = graph.byName.get(name);
+    if (!n) continue;
+    depth.set(name, n.deps.length ? Math.max(...n.deps.map(x => (depth.get(x) ?? 0) + 1)) : 0);
+  }
+  for (const n of graph.nodes) if (!depth.has(n.name)) depth.set(n.name, 0);
+  for (let pass = 0; pass < 4; pass++) {
+    for (const e of graph.edges) {
+      if (e.kind !== "route") continue;
+      const want = (depth.get(e.from) ?? 0) + 1;
+      if ((depth.get(e.to) ?? 0) < want) depth.set(e.to, want);
+    }
+  }
+  const cols = new Map();
+  for (const n of graph.nodes) {
+    const d = depth.get(n.name) ?? 0;
+    if (!cols.has(d)) cols.set(d, []);
+    cols.get(d).push(n);
+  }
+  const pos = new Map();
+  for (const [d, list] of [...cols].sort((a, b) => a[0] - b[0])) {
+    list.forEach((n, k) => pos.set(n.name, { x: 40 + d * 268, y: 40 + k * 122 }));
+  }
+  return pos;
+}
+
+const EXAMPLES = [
+  {
+    title: "Support triage",
+    blurb: "Sort a ticket, then reply in the right tone. Shows branching.",
+    yaml: `name: Support triage
+inputs:
+  - ticket
+
+steps:
+  category:
+    type: prompt
+    system: You sort support tickets. Answer with one word only.
+    prompt: |
+      Ticket: {{ticket}}
+      Is this about billing, a bug, or something else?
+      Answer with exactly one of: billing, bug, other
+
+  route:
+    type: branch
+    on: category
+    when:
+      billing: billing_reply
+      bug: bug_reply
+    else: general_reply
+
+  billing_reply:
+    type: prompt
+    prompt: |
+      Write a short, warm reply about this billing issue.
+      Offer to check the account. Do not promise a refund.
+      Ticket: {{ticket}}
+
+  bug_reply:
+    type: prompt
+    prompt: |
+      Write a short reply acknowledging this bug.
+      Ask for steps to reproduce it and the browser used.
+      Ticket: {{ticket}}
+
+  general_reply:
+    type: prompt
+    prompt: |
+      Write a short, friendly holding reply.
+      Ticket: {{ticket}}
+
+output: billing_reply`,
+  },
+  {
+    title: "Summarise a long document",
+    blurb: "Split it, summarise each piece, then join. Shows fan-out.",
+    yaml: `name: Document summary
+inputs:
+  - document
+
+steps:
+  sections:
+    type: prompt
+    system: You return JSON only.
+    json: true
+    prompt: |
+      Split this document into 3 to 6 sections.
+      Return a JSON array of strings, each one section.
+
+      {{document}}
+
+  digest:
+    type: each
+    over: sections
+    prompt: |
+      Summarise this section in two sentences:
+      {{item}}
+
+  final:
+    type: prompt
+    prompt: |
+      Combine these summaries into one tight paragraph:
+      {{digest}}
+
+output: final`,
+  },
+  {
+    title: "Draft, critique, rewrite",
+    blurb: "The oldest trick that actually works.",
+    yaml: `name: Draft and improve
+inputs:
+  - brief
+
+steps:
+  draft:
+    type: prompt
+    prompt: |
+      Write a first draft for this brief. Be concrete.
+      {{brief}}
+
+  critique:
+    type: prompt
+    system: You are a blunt editor. List problems, do not rewrite.
+    prompt: |
+      Brief: {{brief}}
+
+      Draft:
+      {{draft}}
+
+      List the three biggest weaknesses.
+
+  final:
+    type: prompt
+    prompt: |
+      Rewrite the draft, fixing every point raised.
+
+      Draft:
+      {{draft}}
+
+      Problems:
+      {{critique}}
+
+output: final`,
+  },
+  {
+    title: "Blank",
+    blurb: "One input, one step. Start from nothing.",
+    yaml: `name: My pipeline
+inputs:
+  - topic
+
+steps:
+  answer:
+    type: prompt
+    prompt: |
+      Write one paragraph about {{topic}}.
+
+output: answer`,
+  },
+];
+
+/* ============================================================ text surgery
+   Canvas edits patch the exact lines they touch instead of re-serialising the
+   document, because re-serialising would quietly delete the author's comments,
+   blank lines and chosen ordering. */
+
+function firstStepIndent(lines, stepsAt, stepsIndent) {
+  for (let i = stepsAt + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (!l.trim() || /^\s*#/.test(l)) continue;
+    const ind = l.match(/^ */)[0].length;
+    return ind > stepsIndent ? ind : -1;
+  }
+  return -1;
+}
+
+function stepBlock(text, name) {
+  const lines = text.split("\n");
+  const stepsAt = lines.findIndex(l => /^\s*steps\s*:/.test(l));
+  if (stepsAt < 0) return null;
+  const stepsIndent = lines[stepsAt].match(/^ */)[0].length;
+  const want = firstStepIndent(lines, stepsAt, stepsIndent);
+  if (want < 0) return null;
+  for (let i = stepsAt + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (!l.trim() || /^\s*#/.test(l)) continue;
+    const ind = l.match(/^ */)[0].length;
+    if (ind <= stepsIndent) break;
+    if (ind !== want) continue;
+    const m = l.match(/^\s*([\w"'-]+)\s*:/);
+    if (!m || m[1].replace(/['"]/g, "") !== name) continue;
+    let end = i + 1;
+    while (end < lines.length) {
+      const cur = lines[end];
+      if (cur.trim() && !/^\s*#/.test(cur) && cur.match(/^ */)[0].length <= ind) break;
+      end++;
+    }
+    return { start: i, end, indent: ind };
+  }
+  return null;
+}
+
+/* Appends {{ref}} to a step's prompt, extending the block scalar if there is
+   one and starting one if there is not. */
+function insertRef(text, stepName, ref) {
+  const blk = stepBlock(text, stepName);
+  if (!blk) return text;
+  const lines = text.split("\n");
+  let field = null;
+  for (const f of ["prompt", "text", "value"]) {
+    for (let i = blk.start + 1; i < blk.end && !field; i++) {
+      const m = lines[i].match(new RegExp("^(\\s*)" + f + "\\s*:(.*)$"));
+      if (m) field = { i, indent: m[1].length, rest: m[2], name: f };
+    }
+    if (field) break;
+  }
+  const token = `{{${ref}}}`;
+  if (!field) {
+    lines.splice(blk.start + 1, 0, " ".repeat(blk.indent + 2) + "prompt: |",
+      " ".repeat(blk.indent + 4) + token);
+    return lines.join("\n");
+  }
+  if (/^\s*[|>]-?\s*$/.test(field.rest)) {
+    let end = field.i + 1;
+    while (end < lines.length) {
+      const cur = lines[end];
+      if (cur.trim() && cur.match(/^ */)[0].length <= field.indent) break;
+      end++;
+    }
+    let bodyIndent = field.indent + 2;
+    for (let k = field.i + 1; k < end; k++) if (lines[k].trim()) { bodyIndent = lines[k].match(/^ */)[0].length; break; }
+    while (end > field.i + 1 && !lines[end - 1].trim()) end--;
+    lines.splice(end, 0, " ".repeat(bodyIndent) + token);
+    return lines.join("\n");
+  }
+  lines[field.i] = `${" ".repeat(field.indent)}${field.name}: |`;
+  const existing = field.rest.trim();
+  const body = " ".repeat(field.indent + 2);
+  const add = [];
+  if (existing) add.push(body + existing.replace(/^["']|["']$/g, ""));
+  add.push(body + token);
+  lines.splice(field.i + 1, 0, ...add);
+  return lines.join("\n");
+}
+
+function removeStep(text, name) {
+  const blk = stepBlock(text, name);
+  if (!blk) return text;
+  const lines = text.split("\n");
+  lines.splice(blk.start, blk.end - blk.start);
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n");
+}
+
+function appendStep(text, name) {
+  const lines = text.split("\n");
+  const stepsAt = lines.findIndex(l => /^\s*steps\s*:/.test(l));
+  const body = [`  ${name}:`, `    type: prompt`, `    prompt: |`, `      Write something.`];
+  if (stepsAt < 0) return text.trimEnd() + "\n\nsteps:\n" + body.join("\n") + "\n";
+  const stepsIndent = lines[stepsAt].match(/^ */)[0].length;
+  let end = lines.length;
+  for (let i = stepsAt + 1; i < lines.length; i++) {
+    const l = lines[i];
+    if (!l.trim() || /^\s*#/.test(l)) continue;
+    if (l.match(/^ */)[0].length <= stepsIndent) { end = i; break; }
+  }
+  while (end > stepsAt + 1 && !lines[end - 1].trim()) end--;
+  lines.splice(end, 0, "", ...body);
+  return lines.join("\n");
+}
+
+/* ============================================================ view */
+const $ = id => document.getElementById(id);
+const ICON = {
+  input:  "<path d='M4 12h13M12 7l5 5-5 5'/><path d='M20 4v16'/>",
+  prompt: "<path d='M21 12a9 9 0 1 1-9-9'/><path d='M8 11h6M8 15h4'/>",
+  text:   "<path d='M5 6h14M5 12h14M5 18h9'/>",
+  branch: "<path d='M6 4v6a4 4 0 0 0 4 4h8'/><path d='M6 20v-4'/><path d='M15 11l3 3-3 3'/>",
+  each:   "<rect x='3' y='4' width='7' height='7' rx='1.5'/><rect x='3' y='14' width='7' height='7' rx='1.5'/><path d='M14 7.5h7M14 17.5h7'/>",
+};
+const svgIcon = t => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[t] || ICON.prompt}</svg>`;
+const esc = s => String(s).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+const cssEsc = s => String(s).replace(/["\\]/g, "\\$&");
+
+const V = {
+  text: "", doc: {}, graph: null, keyLine: new Map(),
+  pos: new Map(), custom: new Map(),
+  zoom: 1, panX: 0, panY: 0, sel: null, sig: "", running: false,
+  status: new Map(), values: new Map(),
+};
+const NODE_W = 210, NODE_H = 74;
+const LAYOUT_KEY = () => "junction.layout." + (V.doc.name || "pipeline");
+
+function loadLayout() {
+  try { V.custom = new Map(Object.entries(JSON.parse(localStorage.getItem(LAYOUT_KEY()) || "{}"))); }
+  catch (e) { V.custom = new Map(); }
+}
+function saveLayout() {
+  try { localStorage.setItem(LAYOUT_KEY(), JSON.stringify(Object.fromEntries(V.custom))); } catch (e) {}
+}
+const posOf = n => V.custom.get(n) || V.pos.get(n) || { x: 40, y: 40 };
+
+let parseTimer = null;
+function scheduleParse() {           // typing must never wait on a full rebuild
+  clearTimeout(parseTimer);
+  parseTimer = setTimeout(reparse, 130);
+}
+
+function reparse() {
+  V.text = $("yaml").value;
+  const r = parseYAML(V.text);
+  V.doc = r.data; V.keyLine = r.keyLine;
+  V.graph = buildGraph(r.data);
+  V.pos = layout(V.graph);
+  loadLayout();
+  try { localStorage.setItem("junction.draft", V.text); } catch (e) {}
+  renderGutter(); renderProblems(); renderGraph(); renderInputs(); renderStatus();
+}
+
+function renderGutter() {
+  const n = V.text.split("\n").length;
+  const g = $("gutter");
+  if (g.dataset.n === String(n)) return;
+  g.dataset.n = String(n);
+  g.innerHTML = Array.from({ length: n }, (_, k) => k + 1).join("<br/>");
+}
+
+function renderStatus() {
+  const g = V.graph;
+  const errs = g.problems.filter(p => p.level === "error").length;
+  const steps = g.nodes.filter(n => n.type !== "input").length;
+  $("stat").innerHTML = errs
+    ? `<b style="color:var(--bad)">${errs}</b> problem${errs > 1 ? "s" : ""}`
+    : `<b>${steps}</b> step${steps === 1 ? "" : "s"} &middot; <b>${g.inputs.length}</b> input${g.inputs.length === 1 ? "" : "s"}`;
+  $("bRun").disabled = errs > 0 || V.running;
+}
+
+function renderProblems() {
+  const box = $("problems"), list = V.graph.problems;
+  if (!list.length) { box.classList.remove("on"); box.innerHTML = ""; return; }
+  box.classList.add("on");
+  box.innerHTML = list.map(p => {
+    const ln = V.keyLine.get(p.key) || "";
+    return `<div class="prob ${p.level === "error" ? "err" : "warn"}" data-line="${ln}">
+      <span class="dot"></span><span class="ln">${ln || "&mdash;"}</span><span>${esc(p.msg)}</span></div>`;
+  }).join("");
+}
+
+function nodeSignature(g) {
+  return g.nodes.map(n => n.name + ":" + n.type).join("|") + "#" +
+    g.edges.map(e => e.from + ">" + e.to + e.kind).join("|") + "#" +
+    g.nodes.map(n => String(n.step.prompt ?? n.step.text ?? "").slice(0, 90)).join("|");
+}
+
+function renderGraph() {
+  const g = V.graph, world = $("world");
+  $("empty").style.display = g.nodes.length ? "none" : "grid";
+  const sig = nodeSignature(g);
+  if (sig !== V.sig) {              // only rebuild the DOM when the shape changes
+    V.sig = sig;
+    world.innerHTML = g.nodes.map(n => {
+      const body = n.type === "input" ? "given when you run it"
+        : n.type === "branch" ? n.routes.map(r => `${r.on} \u2192 ${r.target}`).join("\n")
+        : String(n.step.prompt ?? n.step.text ?? n.step.value ?? "").trim().slice(0, 90) || "\u2014";
+      return `<div class="node t-${n.type}" data-name="${esc(n.name)}">
+        <div class="hd">${svgIcon(n.type)}<span class="nm">${esc(n.name)}</span>
+          <span class="ty">${n.type === "input" ? "input" : TYPES[n.type].label}</span></div>
+        <div class="bd">${esc(body)}</div>
+        ${n.type === "input" ? "" : '<span class="port in"></span>'}
+        <span class="port out"></span>
+      </div>`;
+    }).join("");
+  }
+  for (const n of g.nodes) {
+    const el = world.querySelector(`[data-name="${cssEsc(n.name)}"]`);
+    if (!el) continue;
+    const p = posOf(n.name);
+    el.style.transform = `translate(${p.x}px,${p.y}px)`;
+    const st = V.status.get(n.name);
+    el.className = `node t-${n.type}${V.sel === n.name ? " sel" : ""}` +
+      (st === "run" ? " running" : st === "ok" ? " done" : st === "err" ? " failed" : "");
+  }
+  renderWires();
+  applyTransform();
+}
+
+function renderWires() {
+  const parts = [];
+  for (const e of V.graph.edges) {
+    const a = posOf(e.from), b = posOf(e.to);
+    const x1 = a.x + NODE_W, y1 = a.y + NODE_H / 2, x2 = b.x, y2 = b.y + NODE_H / 2;
+    const dx = Math.max(36, Math.abs(x2 - x1) * 0.45);
+    const cls = "wire" + (e.kind === "route" ? " hot" : "") +
+      (V.status.get(e.from) === "ok" && V.status.get(e.to) === "run" ? " flow" : "");
+    parts.push(`<path class="${cls}" d="M${x1} ${y1} C${x1 + dx} ${y1} ${x2 - dx} ${y2} ${x2} ${y2}"/>`);
+    if (e.label) parts.push(`<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 6}" fill="#66748e" font-size="10" text-anchor="middle">${esc(e.label)}</text>`);
+  }
+  $("wires").innerHTML = parts.join("");
+}
+
+function applyTransform() {
+  const t = `translate(${V.panX}px,${V.panY}px) scale(${V.zoom})`;
+  $("world").style.transform = t;
+  $("wires").style.transform = t;
+}
+
+function fitView() {
+  const g = V.graph;
+  if (!g || !g.nodes.length) return;
+  const ps = g.nodes.map(n => posOf(n.name));
+  const minX = Math.min(...ps.map(p => p.x)), maxX = Math.max(...ps.map(p => p.x)) + NODE_W;
+  const minY = Math.min(...ps.map(p => p.y)), maxY = Math.max(...ps.map(p => p.y)) + NODE_H;
+  const box = $("canvas").getBoundingClientRect();
+  const z = Math.min(1.15, (box.width - 60) / Math.max(1, maxX - minX), (box.height - 60) / Math.max(1, maxY - minY));
+  V.zoom = Math.max(0.25, z);
+  V.panX = (box.width - (maxX - minX) * V.zoom) / 2 - minX * V.zoom;
+  V.panY = (box.height - (maxY - minY) * V.zoom) / 2 - minY * V.zoom;
+  applyTransform();
+}
+
+function renderInputs() {
+  const box = $("inputsBody"), g = V.graph;
+  if (!g.inputs.length) {
+    box.innerHTML = `<p style="color:var(--faint);font-size:12.5px;line-height:1.7">No inputs yet. Add an <code>inputs:</code> list on the left and they appear here.</p>`;
+    return;
+  }
+  box.innerHTML = g.inputs.map(n => `<div class="field">
+    <label for="in_${esc(n)}">${esc(n)}</label>
+    <input id="in_${esc(n)}" data-input="${esc(n)}" placeholder="value for {{${esc(n)}}}" value="${esc(V.values.get(n) || "")}" />
+  </div>`).join("");
+  box.querySelectorAll("[data-input]").forEach(el =>
+    el.addEventListener("input", () => V.values.set(el.dataset.input, el.value)));
+}
+
+function jumpToLine(n) {
+  if (!n) return;
+  const ta = $("yaml"), lines = ta.value.split("\n");
+  const pos = lines.slice(0, n - 1).join("\n").length + (n > 1 ? 1 : 0);
+  ta.focus();
+  ta.setSelectionRange(pos, pos + (lines[n - 1] || "").length);
+  ta.scrollTop = Math.max(0, (n - 1) * 20.6 - ta.clientHeight / 2);
+}
+
+function toast(msg) {
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.remove("on"), 2200);
+}
+
+/* ============================================================ running
+   Everything happens in this page against the reader's own endpoint. There is
+   no server here, so there is nothing for me to see, meter or lose. */
+
+const CFG_KEY = "junction.conn";
+function conn() {
+  try { return JSON.parse(localStorage.getItem(CFG_KEY) || "{}"); } catch (e) { return {}; }
+}
+function fillTemplate(str, values) {
+  return String(str ?? "").replace(REF_RE, (_, name) => {
+    const v = values.get(name);
+    if (v === undefined || v === null) return "";
+    return Array.isArray(v) ? v.join("\n\n") : String(v);
+  });
+}
+
+async function callModel(cfg, { model, system, prompt, json, temperature }) {
+  const body = {
+    model: model || cfg.model || "gpt-4o-mini",
+    messages: [...(system ? [{ role: "system", content: system }] : []), { role: "user", content: prompt }],
+  };
+  if (temperature !== undefined) body.temperature = Number(temperature);
+  if (json) body.response_format = { type: "json_object" };
+  const res = await fetch((cfg.base || "https://api.openai.com/v1").replace(/\/+$/, "") + "/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(cfg.key ? { Authorization: "Bearer " + cfg.key } : {}) },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`${res.status} ${res.statusText}${text ? " \u2014 " + text.slice(0, 300) : ""}`);
+  }
+  const data = await res.json();
+  return (data.choices && data.choices[0] && data.choices[0].message.content || "").trim();
+}
+
+function asList(v) {
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string") {
+    try { const p = JSON.parse(v); if (Array.isArray(p)) return p; } catch (e) {}
+    return v.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+  }
+  return v === undefined || v === null ? [] : [v];
+}
+
+function stepPanel(name) {
+  let el = document.querySelector(`[data-step="${cssEsc(name)}"]`);
+  if (el) return el;
+  el = document.createElement("div");
+  el.className = "step"; el.dataset.step = name;
+  el.innerHTML = `<div class="sh"><span class="dotst"></span><span class="nm">${esc(name)}</span>
+    <span class="ms"></span></div><div class="out"></div>`;
+  el.querySelector(".sh").addEventListener("click", () => el.classList.toggle("open"));
+  $("runBody").appendChild(el);
+  return el;
+}
+function setStep(name, state, text, ms) {
+  const el = stepPanel(name);
+  el.querySelector(".dotst").className = "dotst " + state;
+  if (ms !== undefined) el.querySelector(".ms").textContent = ms + "ms";
+  if (text !== undefined) el.querySelector(".out").textContent = text;
+  if (state === "err") el.classList.add("open");
+  V.status.set(name, state === "ok" ? "ok" : state === "err" ? "err" : "run");
+  renderGraph();
+}
+
+async function runPipeline() {
+  const g = V.graph, cfg = conn();
+  if (g.problems.some(p => p.level === "error")) return toast("Fix the problems first");
+  if (!cfg.base) { openModal("mKey"); return toast("Choose an endpoint first"); }
+
+  V.running = true; V.status.clear(); renderStatus();
+  $("run").classList.add("on"); $("runBody").innerHTML = ""; $("runStat").textContent = "running";
+
+  const values = new Map();
+  for (const i of g.inputs) values.set(i, V.values.get(i) || "");
+  const skipped = new Set();
+  const t0 = performance.now();
+
+  try {
+    for (const name of g.order) {
+      const n = g.byName.get(name);
+      if (!n || n.type === "input") continue;
+      if (skipped.has(name) || n.deps.some(d => skipped.has(d))) {
+        skipped.add(name); setStep(name, "", "skipped \u2014 the branch went another way"); continue;
+      }
+      const started = performance.now();
+      setStep(name, "run", "");
+      try {
+        if (n.type === "text") {
+          values.set(name, fillTemplate(n.step.text, values));
+        } else if (n.type === "branch") {
+          const on = String(values.get(String(n.step.on).trim()) || "").trim().toLowerCase();
+          const hit = n.routes.find(r => r.on !== "else" && on.includes(r.on.toLowerCase()))
+            || n.routes.find(r => r.on === "else");
+          for (const r of n.routes) if (!hit || r.target !== hit.target) skipped.add(r.target);
+          values.set(name, hit ? hit.target : "");
+          setStep(name, "ok", `chose ${hit ? hit.target : "nothing"}`, Math.round(performance.now() - started));
+          continue;
+        } else if (n.type === "each") {
+          const items = asList(values.get(String(n.step.over).trim()));
+          const outs = [];
+          for (let k = 0; k < items.length; k++) {
+            const sub = new Map(values); sub.set("item", items[k]);
+            setStep(name, "run", `item ${k + 1} of ${items.length}\u2026`);
+            outs.push(await callModel(cfg, {
+              model: n.step.model, system: fillTemplate(n.step.system, sub),
+              prompt: fillTemplate(n.step.prompt, sub), json: n.step.json, temperature: n.step.temperature,
+            }));
+          }
+          values.set(name, outs);
+        } else {
+          values.set(name, await callModel(cfg, {
+            model: n.step.model, system: fillTemplate(n.step.system, values),
+            prompt: fillTemplate(n.step.prompt, values), json: n.step.json, temperature: n.step.temperature,
+          }));
+        }
+        const v = values.get(name);
+        setStep(name, "ok", Array.isArray(v) ? v.join("\n\n\u2014\u2014\n\n") : String(v),
+          Math.round(performance.now() - started));
+      } catch (e) {
+        setStep(name, "err", String(e.message || e), Math.round(performance.now() - started));
+        throw e;
+      }
+    }
+    const out = values.get(g.output);
+    $("runStat").textContent = Math.round(performance.now() - t0) + "ms";
+    if (out !== undefined) {
+      const el = stepPanel("output \u2192 " + g.output);
+      el.classList.add("open");
+      el.querySelector(".dotst").className = "dotst ok";
+      el.querySelector(".out").textContent = Array.isArray(out) ? out.join("\n\n") : String(out);
+    }
+  } catch (e) {
+    $("runStat").textContent = "failed";
+  } finally {
+    V.running = false; renderStatus();
+  }
+}
+
+/* ============================================================ python export */
+function pyQuote(s) { return String(s).replace(/\\/g, "\\\\").replace(/"""/g, '\\"\\"\\"'); }
+function pyTemplate(s) {
+  // f-strings read braces as code, so literal ones are doubled before refs go in
+  return pyQuote(String(s === undefined || s === null ? "" : s))
+    .replace(/\{/g, "{{").replace(/\}/g, "}}")
+    .replace(/\{\{\{\{\s*([a-zA-Z_]\w*)\s*\}\}\}\}/g, "{$1}");
+}
+function exportPython(graph, cfg) {
+  const L = [];
+  L.push(`"""${graph.name} \u2014 exported from Junction.`);
+  L.push("");
+  L.push("Plain Python. It needs the openai package and nothing else:");
+  L.push("    pip install openai");
+  L.push('"""');
+  L.push("import json");
+  L.push("import os");
+  L.push("");
+  L.push("from openai import OpenAI");
+  L.push("");
+  L.push("client = OpenAI(");
+  L.push(`    base_url=${JSON.stringify(cfg.base || "https://api.openai.com/v1")},`);
+  L.push('    api_key=os.environ.get("OPENAI_API_KEY", ""),');
+  L.push(")");
+  L.push(`MODEL = ${JSON.stringify(cfg.model || "gpt-4o-mini")}`);
+  L.push("", "");
+  L.push("def ask(prompt, system=None, model=None, json_mode=False):");
+  L.push("    messages = []");
+  L.push("    if system:");
+  L.push('        messages.append({"role": "system", "content": system})');
+  L.push('    messages.append({"role": "user", "content": prompt})');
+  L.push("    kwargs = {}");
+  L.push("    if json_mode:");
+  L.push('        kwargs["response_format"] = {"type": "json_object"}');
+  L.push("    reply = client.chat.completions.create(");
+  L.push("        model=model or MODEL, messages=messages, **kwargs");
+  L.push("    )");
+  L.push('    return (reply.choices[0].message.content or "").strip()');
+  L.push("", "");
+  L.push("def as_list(value):");
+  L.push('    """A JSON array if it is one, otherwise split on blank lines."""');
+  L.push("    if isinstance(value, list):");
+  L.push("        return value");
+  L.push("    try:");
+  L.push("        parsed = json.loads(value)");
+  L.push("        if isinstance(parsed, list):");
+  L.push("            return parsed");
+  L.push("    except Exception:");
+  L.push("        pass");
+  L.push('    return [p.strip() for p in str(value).split("\\n\\n") if p.strip()]');
+  L.push("", "");
+  L.push(`def run(${graph.inputs.join(", ")}):`);
+
+  const body = [];
+  const guards = new Map();
+  for (const name of graph.order) {
+    const n = graph.byName.get(name);
+    if (!n || n.type === "input") continue;
+    const guard = guards.get(name);
+    const ind = guard ? "        " : "    ";
+    if (guard) { body.push(`    ${name} = None`); body.push(`    if ${guard}:`); }
+
+    const model = n.step.model ? `, model=${JSON.stringify(n.step.model)}` : "";
+    const jsonf = n.step.json ? ", json_mode=True" : "";
+    const sys = n.step.system ? `, system=f"""${pyTemplate(n.step.system)}"""` : "";
+
+    if (n.type === "text") {
+      body.push(`${ind}${name} = f"""${pyTemplate(n.step.text)}"""`);
+    } else if (n.type === "branch") {
+      const on = String(n.step.on).trim();
+      body.push(`${ind}${name} = str(${on}).strip().lower()`);
+      for (const r of n.routes) {
+        if (r.on === "else") {
+          const others = n.routes.filter(x => x.on !== "else")
+            .map(x => `${JSON.stringify(x.on.toLowerCase())} not in ${name}`).join(" and ");
+          guards.set(r.target, others || "True");
+        } else {
+          guards.set(r.target, `${JSON.stringify(r.on.toLowerCase())} in ${name}`);
+        }
+      }
+    } else if (n.type === "each") {
+      const over = String(n.step.over).trim();
+      body.push(`${ind}${name} = []`);
+      body.push(`${ind}for item in as_list(${over}):`);
+      body.push(`${ind}    ${name}.append(ask(f"""${pyTemplate(n.step.prompt)}"""${sys}${model}${jsonf}))`);
+    } else {
+      body.push(`${ind}${name} = ask(f"""${pyTemplate(n.step.prompt)}"""${sys}${model}${jsonf})`);
+    }
+  }
+  L.push(...(body.length ? body : ["    pass"]));
+  L.push("");
+  L.push(`    return ${graph.output || "None"}`);
+  L.push("", "");
+  L.push('if __name__ == "__main__":');
+  if (graph.inputs.length) {
+    for (const i of graph.inputs) L.push(`    ${i} = input(${JSON.stringify(i + ": ")})`);
+    L.push(`    print(run(${graph.inputs.join(", ")}))`);
+  } else {
+    L.push("    print(run())");
+  }
+  return L.join("\n") + "\n";
+}
+
+/* ============================================================ wiring */
+function openModal(id) { $(id).classList.add("on"); }
+function closeModal(id) { $(id).classList.remove("on"); }
+document.querySelectorAll(".modal").forEach(m =>
+  m.addEventListener("mousedown", e => { if (e.target === m) m.classList.remove("on"); }));
+addEventListener("keydown", e => {
+  if (e.key === "Escape") document.querySelectorAll(".modal.on").forEach(m => m.classList.remove("on"));
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") { e.preventDefault(); runPipeline(); }
+});
+
+$("yaml").addEventListener("input", scheduleParse);
+$("yaml").addEventListener("scroll", () => { $("gutter").scrollTop = $("yaml").scrollTop; });
+$("yaml").addEventListener("keydown", e => {
+  if (e.key !== "Tab") return;
+  e.preventDefault();
+  const ta = e.target, s = ta.selectionStart;
+  ta.setRangeText("  ", s, ta.selectionEnd, "end");
+  scheduleParse();
+});
+$("problems").addEventListener("click", e => {
+  const row = e.target.closest(".prob");
+  if (row) jumpToLine(Number(row.dataset.line));
+});
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t));
+  const yaml = t.dataset.view === "yaml";
+  $("wrapYaml").style.display = yaml ? "flex" : "none";
+  $("wrapInputs").style.display = yaml ? "none" : "flex";
+}));
+
+let drag = null;
+$("canvas").addEventListener("pointerdown", e => {
+  const port = e.target.closest(".port.out");
+  const node = e.target.closest(".node");
+  if (port && node) { drag = { kind: "wire", from: node.dataset.name }; $("canvas").setPointerCapture(e.pointerId); return; }
+  if (node) {
+    V.sel = node.dataset.name;
+    const p = posOf(V.sel);
+    drag = { kind: "node", name: V.sel, ox: e.clientX / V.zoom - p.x, oy: e.clientY / V.zoom - p.y, moved: false };
+    node.classList.add("dragging");
+    $("canvas").setPointerCapture(e.pointerId);
+    renderGraph();
+    return;
+  }
+  drag = { kind: "pan", ox: e.clientX - V.panX, oy: e.clientY - V.panY };
+  $("canvas").setPointerCapture(e.pointerId);
+});
+$("canvas").addEventListener("pointermove", e => {
+  if (!drag) return;
+  if (drag.kind === "pan") { V.panX = e.clientX - drag.ox; V.panY = e.clientY - drag.oy; applyTransform(); }
+  else if (drag.kind === "node") {
+    drag.moved = true;
+    V.custom.set(drag.name, { x: Math.round(e.clientX / V.zoom - drag.ox), y: Math.round(e.clientY / V.zoom - drag.oy) });
+    const el = $("world").querySelector(`[data-name="${cssEsc(drag.name)}"]`);
+    const p = posOf(drag.name);
+    if (el) el.style.transform = `translate(${p.x}px,${p.y}px)`;
+    renderWires();
+  }
+});
+$("canvas").addEventListener("pointerup", e => {
+  if (!drag) return;
+  if (drag.kind === "node") {
+    $("world").querySelectorAll(".dragging").forEach(n => n.classList.remove("dragging"));
+    if (drag.moved) saveLayout();
+    else jumpToLine(V.keyLine.get("steps." + drag.name) || V.keyLine.get("inputs"));
+  }
+  if (drag.kind === "wire") {
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const target = el && el.closest(".node");
+    if (target && target.dataset.name !== drag.from) {
+      const to = target.dataset.name;
+      const tn = V.graph.byName.get(to);
+      if (tn && tn.type === "input") toast("An input cannot take a value");
+      else {
+        $("yaml").value = insertRef($("yaml").value, to, drag.from);
+        reparse();
+        toast(`{{${drag.from}}} added to ${to}`);
+      }
+    }
+  }
+  drag = null;
+});
+$("canvas").addEventListener("wheel", e => {
+  e.preventDefault();
+  const box = $("canvas").getBoundingClientRect();
+  const mx = e.clientX - box.left, my = e.clientY - box.top;
+  const next = Math.min(2.2, Math.max(0.25, V.zoom * (e.deltaY < 0 ? 1.1 : 0.9)));
+  V.panX = mx - (mx - V.panX) * (next / V.zoom);
+  V.panY = my - (my - V.panY) * (next / V.zoom);
+  V.zoom = next; applyTransform();
+}, { passive: false });
+$("zIn").addEventListener("click", () => { V.zoom = Math.min(2.2, V.zoom * 1.2); applyTransform(); });
+$("zOut").addEventListener("click", () => { V.zoom = Math.max(0.25, V.zoom / 1.2); applyTransform(); });
+$("zFit").addEventListener("click", fitView);
+
+addEventListener("keydown", e => {
+  if (e.key !== "Backspace" && e.key !== "Delete") return;
+  if (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+  const n = V.sel && V.graph.byName.get(V.sel);
+  if (!n || n.type === "input") return;
+  e.preventDefault();
+  $("yaml").value = removeStep($("yaml").value, V.sel);
+  const gone = V.sel; V.sel = null; reparse(); toast(`Removed ${gone}`);
+});
+
+(function splitter() {
+  let on = false;
+  $("drag").addEventListener("pointerdown", e => { on = true; $("drag").setPointerCapture(e.pointerId); });
+  addEventListener("pointermove", e => {
+    if (!on) return;
+    $("left").style.width = Math.min(72, Math.max(22, (e.clientX / innerWidth) * 100)) + "%";
+  });
+  addEventListener("pointerup", () => { on = false; });
+})();
+
+$("bAdd").addEventListener("click", () => {
+  let n = 1, name;
+  do { name = "step_" + n++; } while (V.graph.byName.has(name));
+  $("yaml").value = appendStep($("yaml").value, name);
+  reparse(); jumpToLine(V.keyLine.get("steps." + name)); toast("Added " + name);
+});
+$("bRun").addEventListener("click", runPipeline);
+$("runClose").addEventListener("click", () => $("run").classList.remove("on"));
+$("bExport").addEventListener("click", () => {
+  $("exportCode").textContent = exportPython(V.graph, conn());
+  openModal("mExport");
+});
+$("expCopy").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText($("exportCode").textContent); toast("Copied"); }
+  catch (e) { toast("Copy failed \u2014 select it by hand"); }
+});
+$("expDownload").addEventListener("click", () => {
+  const blob = new Blob([$("exportCode").textContent], { type: "text/x-python" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = (V.doc.name || "pipeline").replace(/\W+/g, "_").toLowerCase() + ".py";
+  a.click(); URL.revokeObjectURL(a.href);
+});
+$("bExamples").addEventListener("click", () => openModal("mEx"));
+$("exClose").addEventListener("click", () => closeModal("mEx"));
+$("exList").innerHTML = EXAMPLES.map((e, i) =>
+  `<button class="ex" data-i="${i}"><b>${esc(e.title)}</b><span>${esc(e.blurb)}</span></button>`).join("");
+$("exList").addEventListener("click", e => {
+  const b = e.target.closest(".ex"); if (!b) return;
+  $("yaml").value = EXAMPLES[+b.dataset.i].yaml;
+  V.sig = ""; reparse(); fitView(); closeModal("mEx");
+});
+
+$("bKey").addEventListener("click", () => {
+  const c = conn();
+  const known = [...$("fBase").options].map(o => o.value);
+  $("fBase").value = c.base && known.includes(c.base) ? c.base : c.base ? "custom" : known[0];
+  $("customWrap").style.display = $("fBase").value === "custom" ? "" : "none";
+  $("fCustom").value = $("fBase").value === "custom" ? (c.base || "") : "";
+  $("fKey").value = c.key || ""; $("fModel").value = c.model || "gpt-4o-mini";
+  openModal("mKey");
+});
+$("fBase").addEventListener("change", () => {
+  $("customWrap").style.display = $("fBase").value === "custom" ? "" : "none";
+});
+$("keySave").addEventListener("click", () => {
+  const base = $("fBase").value === "custom" ? $("fCustom").value.trim() : $("fBase").value;
+  try {
+    localStorage.setItem(CFG_KEY, JSON.stringify({ base, key: $("fKey").value.trim(), model: $("fModel").value.trim() }));
+    toast("Saved on this device");
+  } catch (e) { toast("Could not save"); }
+  closeModal("mKey"); renderStatus();
+});
+$("keyForget").addEventListener("click", () => {
+  try { localStorage.removeItem(CFG_KEY); } catch (e) {}
+  $("fKey").value = ""; toast("Key forgotten"); closeModal("mKey");
+});
+
+(function boot() {
+  let draft = "";
+  try { draft = localStorage.getItem("junction.draft") || ""; } catch (e) {}
+  $("yaml").value = draft || EXAMPLES[0].yaml;
+  reparse();
+  requestAnimationFrame(fitView);
+})();
+</script>
+<script data-count="junction">
+/* Anonymous page count: no cookies, no identifier, no path, nothing about you.
+   One ping saying "a page was opened" and which site linked here. Honours
+   Do Not Track and Global Privacy Control, and fails silently offline. */
+(function(){try{
+  var n=navigator;
+  if(n.doNotTrack==="1"||window.doNotTrack==="1"||n.msDoNotTrack==="1"||n.globalPrivacyControl)return;
+  if(n.onLine===false)return;
+  var h="";try{if(document.referrer)h=new URL(document.referrer).hostname;}catch(e){}
+  if(h===location.hostname)h="";
+  var u="https://portfolio-likes.onrender.com/api/view/junction"+(h?"?r="+encodeURIComponent(h):"");
+  if(n.sendBeacon)n.sendBeacon(u);
+  else fetch(u,{method:"POST",mode:"no-cors",keepalive:true}).catch(function(){});
+}catch(e){}})();
+</script>
+</body>
+</html>

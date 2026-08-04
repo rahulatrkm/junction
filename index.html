@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <title>Junction — build AI pipelines as graphs, leave with the code</title>
-<meta name="description" content="Build AI pipelines and tool-using agents as graphs, or as YAML — one document either way. Run them on your own key, export plain Python you own." />
+<meta name="description" content="Build AI pipelines and tool-using agents as graphs, or as YAML — one document either way. Run them on your own key, export plain Python or TypeScript you own." />
 <meta name="color-scheme" content="dark" />
 <meta name="theme-color" content="#0a0d14" />
 <style>
@@ -138,6 +138,36 @@
   .step .out{padding:0 9px 9px; font-family:var(--mono); font-size:11.5px; color:var(--dim);
     white-space:pre-wrap; word-break:break-word; max-height:190px; overflow:auto; display:none}
   .step.open .out{display:block}
+  .chk{font-size:11.5px; padding:3px 0 3px 8px; border-left:2px solid var(--good); margin-bottom:3px;
+    font-family:var(--mono); white-space:pre-wrap}
+  .chk.bad{border-left-color:var(--bad); color:var(--ink)}
+  .chk b{color:var(--accent); font-weight:600}
+  .chk .rs{color:var(--faint); margin-top:2px}
+  .findings{margin-bottom:8px}
+  .find{border:1px solid var(--line); border-left-width:3px; border-radius:9px; padding:8px 10px;
+    margin-bottom:6px; font-size:11.5px; background:var(--raise)}
+  .find.error{border-left-color:var(--bad)}
+  .find.note{border-left-color:var(--accent)}
+  .find .ft{font-weight:600; color:var(--ink); margin-bottom:3px}
+  .find .fd{color:var(--dim); line-height:1.45}
+  .find .fe{color:var(--faint); font-family:var(--mono); font-size:10.5px; margin-top:5px;
+    white-space:pre-wrap; word-break:break-word}
+  .find .fixbtn{margin-top:7px; font-size:11px; padding:4px 10px}
+  .against{padding:0 9px 9px; font-size:11px}  .against .rs{color:var(--faint); font-family:var(--mono)}
+  .against summary{color:var(--dim); cursor:pointer; margin-top:4px}
+  .against .was{white-space:pre-wrap; max-height:140px; overflow:auto; margin-top:4px;
+    padding-left:8px; border-left:2px solid var(--line)}
+  /* The answer belongs beside the prompt that produced it: the run panel covers
+     this whole side, so putting it there would hide the field being edited. */
+  #ispRun{flex:none; border-top:1px solid var(--line); padding:9px 12px; display:none;
+    max-height:46%; overflow:auto; background:var(--raise)}
+  #ispRun.on{display:block}
+  #ispRun .srh{display:flex; align-items:center; gap:7px; font-size:11px; color:var(--faint);
+    margin-bottom:6px}
+  #ispRun .srnote{font-variant-numeric:tabular-nums}
+  #ispRun .out{font-family:var(--mono); font-size:11.5px; color:var(--ink); white-space:pre-wrap;
+    word-break:break-word}
+  #ispRun .out.bad{color:var(--bad)}
   .dotst{width:7px; height:7px; border-radius:50%; flex:none; background:var(--faint)}
   .dotst.run{background:var(--accent); animation:pulse 1.1s infinite}
   .dotst.ok{background:var(--good)} .dotst.err{background:var(--bad)}
@@ -258,7 +288,7 @@
 </style>
 <link rel="canonical" href="https://rahulatrkm.github.io/junction/" />
 <meta property="og:title" content="Junction — build AI pipelines as graphs, leave with the code" />
-<meta property="og:description" content="Pipelines and tool-using agents, as YAML or as a graph. Run them on your own key, export plain Python you own. No runtime to depend on." />
+<meta property="og:description" content="Pipelines and tool-using agents, as YAML or as a graph. Run them on your own key, export plain Python or TypeScript you own. No runtime to depend on." />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://rahulatrkm.github.io/junction/" />
 <meta property="og:image" content="https://rahulatrkm.github.io/junction/og.png" />
@@ -272,7 +302,7 @@
   "@type": "SoftwareApplication",
   "name": "Junction",
   "url": "https://rahulatrkm.github.io/junction/",
-  "description": "Build AI pipelines and tool-using agents as graphs, or as readable YAML — they are the same document. Run it on your own API key, then export plain Python you own. No runtime to depend on. Free.",
+  "description": "Build AI pipelines and tool-using agents as graphs, or as readable YAML — they are the same document. Run it on your own API key, then export plain Python or TypeScript you own. No runtime to depend on. Free.",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Any modern web browser",
   "browserRequirements": "Requires JavaScript",
@@ -291,7 +321,7 @@
 </script>
 </head>
 <body>
-<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Junction — build AI pipelines as graphs and export plain Python</h1>
+<h1 style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap">Junction — build AI pipelines as graphs and export plain Python or TypeScript</h1>
 
 <header>
   <span class="logo">JUNCTION</span>
@@ -300,10 +330,12 @@
   <button class="btn" id="bAdd"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg> Add step</button>
   <button class="btn" id="bLib" aria-label="Saved pipelines"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6a2 2 0 0 1 2-2h5v16H6a2 2 0 0 1-2-2z"/><path d="M13 4h5a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-5z"/></svg> <span class="hidesm">Saved</span></button>
   <span class="grow"></span>
+  <button class="btn" id="bExt" aria-label="Extensions" title="Checks and languages added by extensions"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3h4v3a2 2 0 1 0 4 0h3v4h-3a2 2 0 1 0 0 4h3v4h-4v-3a2 2 0 1 0-4 0v3H6v-4h3a2 2 0 1 0 0-4H6V6h4z"/></svg></button>
   <span class="chip hidesm" id="stat">&mdash;</span>
   <button class="btn" id="bShare" aria-label="Copy a shareable link" title="Copy a link that carries this whole pipeline"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></button>
-  <button class="btn" id="bExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> <span class="hidesm">Export Python</span></button>
+  <button class="btn" id="bExport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M8 11l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> <span class="hidesm">Export</span></button>
   <button class="btn" id="bKey" aria-label="Connection and API key settings" title="Connection and API key settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="12" r="4"/><path d="M12 12h9M18 12v4M15 12v3"/></svg></button>
+  <button class="btn" id="bTest" title="Run every case in the tests: block"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg> <span class="hidesm">Test</span></button>
   <button class="btn go" id="bRun"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4l13 8-13 8z"/></svg> Run</button>
 </header>
 
@@ -354,6 +386,7 @@
       <div class="ih"><b id="ispTitle">Step</b><span class="grow"></span>
         <button class="btn" id="ispClose">Close</button></div>
       <div class="ib" id="ispBody"></div>
+      <div id="ispRun"></div>
     </aside>
     <aside id="run">
       <div class="rh"><b>Run</b><span class="chip" id="runStat">idle</span>
@@ -404,20 +437,37 @@
 </div></div>
 
 <div class="modal" id="mExport"><div class="sheet">
-  <h2>Python &mdash; yours to keep</h2>
+  <h2>Yours to keep</h2>
   <div class="body">
-    <div class="note">This is plain Python. It needs the <code>openai</code> package and nothing
-      from Junction. Delete this page tomorrow and your pipeline still runs.</div>
+    <div class="tabs" id="langTabs"></div>
+    <div class="note" id="exportNote"></div>
     <pre class="code" id="exportCode"></pre>
   </div>
   <div class="foot">
     <button class="btn" id="expCopy">Copy</button>
-    <button class="btn go" id="expDownload">Download .py</button>
+    <button class="btn go" id="expDownload">Download</button>
   </div>
 </div></div>
 
-<div class="modal" id="mEx"><div class="sheet">
-  <h2>Start from an example</h2>
+<div class="modal" id="mExt"><div class="sheet">
+  <h2>Extensions</h2>
+  <div class="body">
+    <div class="note">An extension adds <b>checks</b> and <b>languages</b>. It is code you
+      choose to run, with the same reach as anything you install from npm &mdash; read it
+      first. <b>A pipeline can never install one</b>: not a document, not a shared link.</div>
+    <div class="field">
+      <label for="extUrl">Address of the extension</label>
+      <input id="extUrl" placeholder="https://&hellip;/my-extension.js" spellcheck="false" />
+    </div>
+    <div id="extList"></div>
+  </div>
+  <div class="foot">
+    <button class="btn" id="extClose">Close</button>
+    <button class="btn go" id="extAdd">Install</button>
+  </div>
+</div></div>
+
+<div class="modal" id="mEx"><div class="sheet">  <h2>Start from an example</h2>
   <div class="body"><div class="exlist" id="exList"></div></div>
   <div class="foot"><button class="btn" id="exClose">Close</button></div>
 </div></div>
@@ -629,6 +679,16 @@ const TYPES = {
   branch: { label: "Branch", needs: ["on"] },
   each:   { label: "Each",   needs: ["over", "prompt"] },
   agent:  { label: "Agent",  needs: ["goal"] },
+  use:    { label: "Pipeline", needs: ["pipeline"] },
+};
+
+/* A pipeline you cannot use inside another is an island, and a shelf of islands
+   is not a library. A `use` step runs a saved pipeline and hands back what it
+   returned — and exports as a plain function call, because that is what it is. */
+const MAX_NESTING = 5;
+const savedPipeline = name => {
+  try { return (JSON.parse(localStorage.getItem("junction.library") || "{}")[name] || {}).yaml || null; }
+  catch (e) { return null; }
 };
 
 /* Tools are declarative on purpose. An agent hands arguments it invented to
@@ -640,6 +700,50 @@ const TOOL_KINDS = {
   http:  { label: "HTTP request", declared: true },
   calc:  { label: "Calculator",  params: { expression: "An arithmetic expression, for example (12 + 3) * 4" } },
   clock: { label: "Clock",       params: {} },
+};
+
+/* Checks are declarative for the same reason the tools are: a pipeline you can
+   share carries its tests with it, and nothing here evaluates a string. Each one
+   reads as the sentence you would say out loud about the step.
+
+   This is a registry rather than a list of ifs, because an extension can add to
+   it. `test` answers whether the value passed; `value` settles what the document
+   said into the form both the page and the export use. */
+const CHECKS = {
+  equals: {
+    label: "is exactly", failed: "is not exactly", takes: "text",
+    test: (got, want) => got.toLowerCase() === want.toLowerCase(),
+  },
+  contains: {
+    label: "contains", failed: "does not contain", takes: "text",
+    test: (got, want) => got.toLowerCase().includes(want.toLowerCase()),
+  },
+  not_contains: {
+    label: "does not contain", failed: "should not contain", takes: "text",
+    test: (got, want) => !got.toLowerCase().includes(want.toLowerCase()),
+  },
+  matches: {
+    label: "matches", failed: "does not match", takes: "regex",
+    test: (got, want) => new RegExp(want).test(got),
+  },
+  is_one_of: {
+    label: "is one of", failed: "is not one of", takes: "list",
+    value: raw => nameList(raw),
+    describe: raw => nameList(raw).join(", "),
+    test: (got, want, raw) => nameList(raw).some(o => o.toLowerCase() === got.toLowerCase()),
+  },
+  json: {
+    label: "is JSON", failed: "is not JSON", takes: "yes/no",
+    value: raw => isYes(raw),
+    describe: raw => (isYes(raw) ? "valid JSON" : "not JSON"),
+    test: (got, want, raw) => parsesAsJson(got) === isYes(raw),
+  },
+  not_empty: {
+    label: "is not empty", failed: "is empty", takes: "yes/no",
+    value: raw => isYes(raw),
+    describe: raw => (isYes(raw) ? "something" : "nothing"),
+    test: (got, want, raw) => (got.length > 0) === isYes(raw),
+  },
 };
 const REF_RE = /\{\{\s*([a-zA-Z_][\w]*)\s*\}\}/g;
 
@@ -718,9 +822,130 @@ function readTools(doc, err, warn) {
   return tools;
 }
 
+/* What a value has to look like for a case to pass. Every failing check is
+   collected, not just the first, because being told one thing at a time is how a
+   ten-second fix becomes a ten-minute one. */
+const checkText = v => (Array.isArray(v) ? v.join("\n\n") : String(v ?? "")).trim();
+const isYes = v => v === true || v === undefined || /^(yes|true|1)$/i.test(String(v ?? "").trim());
+
+function parsesAsJson(text) {
+  try { JSON.parse(text); return true; } catch (e) { return false; }
+}
+
+function checkValue(value, expect) {
+  const got = checkText(value);
+  const fails = [];
+  for (const [name, raw] of Object.entries(expect || {})) {
+    const def = CHECKS[name];
+    if (!def) continue;                     // refused at read time, ignored here
+    let passed = false;
+    // A check that throws has not passed. An extension must not be able to take
+    // the run down with a bad pattern or a bad line of its own.
+    try { passed = !!def.test(got, checkText(raw), raw); } catch (e) { passed = false; }
+    if (!passed) fails.push({ check: name, want: describeWant(def, raw), got });
+  }
+  return fails;
+}
+
+const describeWant = (def, raw) => (def.describe ? def.describe(raw) : checkText(raw));
+
+/* Cases live in the same document as the pipeline, so they cannot drift out of
+   step with it — the same reason the edges are read out of the references. */
+function readTests(doc, err, warn, known, inputs) {
+  const cases = [];
+  const raw = (doc.tests && typeof doc.tests === "object" && !Array.isArray(doc.tests)) ? doc.tests : {};
+  if (doc.tests && !Object.keys(raw).length) err("tests: is there but empty", "tests");
+
+  for (const [name, def] of Object.entries(raw)) {
+    const key = "tests." + name;
+    const t = def && typeof def === "object" && !Array.isArray(def) ? def : {};
+    const given = t.inputs && typeof t.inputs === "object" && !Array.isArray(t.inputs) ? t.inputs : {};
+    const values = new Map();
+    for (const [k, v] of Object.entries(given)) {
+      if (!inputs.includes(k)) err(`case "${name}" sets "${k}", which is not an input:`, key);
+      values.set(k, checkText(v));
+    }
+    for (const i of inputs)
+      if (!values.has(i)) warn(`case "${name}" does not set {{${i}}}, so it runs empty`, key);
+
+    const expect = [];
+    const wants = t.expect && typeof t.expect === "object" && !Array.isArray(t.expect) ? t.expect : {};
+    for (const [target, spec] of Object.entries(wants)) {
+      if (!known.has(target)) { err(`case "${name}" expects "${target}", which is not a step`, key); continue; }
+      // `step: some text` is the common case said the short way.
+      const checks = spec && typeof spec === "object" && !Array.isArray(spec) ? spec : { equals: spec };
+      for (const c of Object.keys(checks))
+        if (!CHECKS[c]) err(`case "${name}" uses unknown check "${c}" \u2014 try ${Object.keys(CHECKS).join(", ")}`, key);
+      const usable = Object.fromEntries(Object.entries(checks).filter(([c]) => CHECKS[c]));
+      if (Object.keys(usable).length) expect.push({ target, checks: usable });
+    }
+    if (!expect.length) warn(`case "${name}" checks nothing, so it can only catch a crash`, key);
+
+    cases.push({ name, values, expect });
+  }
+  return cases;
+}
+
+/* Resolving one `use` step: find the pipeline, build it, and refuse the two
+   ways this goes wrong quietly — a loop, and a nest deep enough to hang. */
+function readUse(name, step, err, warn, resolve, stack) {
+  const key = "steps." + name;
+  const wanted = String(step.pipeline ?? "").trim();
+  if (!wanted) return null;
+
+  if (stack.includes(wanted)) {
+    err(`"${name}" uses "${wanted}", which is already using this one \u2014 that is a loop`, key);
+    return null;
+  }
+  if (stack.length >= MAX_NESTING) {
+    err(`"${name}" nests pipelines more than ${MAX_NESTING} deep`, key);
+    return null;
+  }
+
+  const yaml = resolve(wanted);
+  if (yaml === null || yaml === undefined) {
+    err(`"${name}" uses pipeline "${wanted}", which is not saved in this browser`, key);
+    return null;
+  }
+
+  const sub = buildGraph(parseYAML(yaml).data, { resolve, stack: [...stack, wanted] });
+  sub.title = wanted;
+  const broken = sub.problems.filter(p => p.level === "error");
+  if (broken.length) {
+    err(`"${wanted}" has its own problems, so "${name}" cannot run it: ${broken[0].msg}`, key);
+    return null;
+  }
+  if (!sub.output) {
+    err(`"${wanted}" has no output:, so "${name}" would get nothing back`, key);
+    return null;
+  }
+
+  const given = step.with && typeof step.with === "object" && !Array.isArray(step.with) ? step.with : {};
+  for (const k of Object.keys(given))
+    if (!sub.inputs.includes(k))
+      err(`"${name}" passes "${k}", which "${wanted}" does not take`, key);
+  for (const i of sub.inputs)
+    if (given[i] === undefined)
+      warn(`"${name}" does not pass {{${i}}} to "${wanted}", so it runs empty`, key);
+
+  return sub;
+}
+
+/* Every pipeline reachable from this one, deepest first, each named once. The
+   export needs them in this order so a function is defined before it is called. */
+function usedPipelines(graph, into = new Map()) {
+  for (const n of graph.nodes) {
+    if (n.type !== "use" || !n.sub) continue;
+    usedPipelines(n.sub, into);
+    if (!into.has(n.sub.title)) into.set(n.sub.title, n.sub);
+  }
+  return into;
+}
+
 /* Turns the parsed document into something drawable and runnable, collecting
-   every problem rather than throwing on the first one. */
-function buildGraph(doc) {
+   every problem rather than throwing on the first one. */function buildGraph(doc, options = {}) {
+  const resolve = options.resolve || savedPipeline;
+  const stack = options.stack || [];
   const problems = [];
   const err = (msg, key) => problems.push({ level: "error", msg, key });
   const warn = (msg, key) => problems.push({ level: "warn", msg, key });
@@ -752,6 +977,16 @@ function buildGraph(doc) {
     for (const t of templateFields(step)) for (const r of refsIn(t)) deps.add(r);
     if (type === "branch" && typeof step.on === "string") deps.add(step.on.trim());
     if (type === "each" && typeof step.over === "string") deps.add(step.over.trim());
+    if (type === "use" && step.with && typeof step.with === "object")
+      for (const v of Object.values(step.with)) for (const r of refsIn(String(v ?? ""))) deps.add(r);
+    if (TYPES[type].custom) {
+      // Junction does not know which of a custom step's fields hold templates,
+      // so every string in it is read for references unless it says otherwise.
+      const own = TYPES[type].deps ? nameList(TYPES[type].deps(step)) : null;
+      if (own) for (const d of own) deps.add(d);
+      else for (const v of Object.values(step))
+        if (typeof v === "string") for (const r of refsIn(v)) deps.add(r);
+    }
     deps.delete("item");                       // each binds item itself
 
     const routes = [];
@@ -772,7 +1007,9 @@ function buildGraph(doc) {
     if (type === "agent" && step.max_steps !== undefined && !(Number(step.max_steps) > 0))
       err(`"${name}" has max_steps: that is not a positive number`, "steps." + name);
 
-    nodes.push({ name, type, step, deps: [...deps].filter(d => known.has(d)), routes, uses });
+    const sub = type === "use" ? readUse(name, step, err, warn, resolve, stack) : null;
+
+    nodes.push({ name, type, step, deps: [...deps].filter(d => known.has(d)), routes, uses, sub });
   }
 
   for (const t of tools.keys())
@@ -799,7 +1036,9 @@ function buildGraph(doc) {
     if (!feedsSomething && !isChosen && n.name !== output) warn(`nothing reads "${n.name}"`, "steps." + n.name);
   }
 
-  return { name: doc.name || "pipeline", inputs, tools, nodes, edges, order, output, problems, byName };
+  const tests = readTests(doc, err, warn, new Set(names), inputs);
+
+  return { name: doc.name || "pipeline", inputs, tools, nodes, edges, order, output, tests, problems, byName };
 }
 
 function topoSort(nodes, edges, err) {
@@ -904,7 +1143,26 @@ steps:
       Write a short, friendly holding reply.
       Ticket: {{ticket}}
 
-output: billing_reply`,
+output: billing_reply
+
+# Change a prompt above and press Test. These say what must stay true.
+tests:
+  a_double_charge_is_billing:
+    inputs:
+      ticket: I have been charged twice for the same month
+    expect:
+      category:
+        is_one_of: [billing, bug, other]
+      billing_reply:
+        not_empty: yes
+        not_contains: refund
+
+  a_crash_is_a_bug:
+    inputs:
+      ticket: the export button does nothing and the console shows an error
+    expect:
+      category:
+        equals: bug`,
   },
   {
     title: "Summarise a long document",
@@ -927,6 +1185,7 @@ steps:
   digest:
     type: each
     over: sections
+    concurrent: 4
     prompt: |
       Summarise this section in two sentences:
       {{item}}
@@ -1180,6 +1439,7 @@ function appendStep(text, name, type = "prompt") {
     branch: [`    type: branch`, `    on: something`, `    when:`, `      yes: a_step`, `    else: another_step`],
     each:   [`    type: each`, `    over: a_list`, `    prompt: |`, `      Do something with {{item}}.`],
     agent:  [`    type: agent`, `    tools: []`, `    max_steps: 6`, `    goal: |`, `      Work out the answer using the tools.`],
+    use:    [`    type: use`, `    pipeline: a saved pipeline`, `    with:`, `      its_input: "{{something}}"`],
   }[type] || [];
   const body = [`  ${name}:`, ...starter];
   if (stepsAt < 0) return text.trimEnd() + "\n\nsteps:\n" + body.join("\n") + "\n";
@@ -1262,7 +1522,7 @@ function setField(text, stepName, key, value, section = "steps") {
         ? [`${pad}${key}:`, ...Object.entries(value).map(([k, v]) => `${pad}  ${k}: ${plainScalar(String(v))}`)]
         : /\n/.test(String(value))
           ? [`${pad}${key}: |`, ...String(value).replace(/\s+$/, "").split("\n").map(l => pad + "  " + l)]
-          : [`${pad}${key}: ${plainScalar(String(value))}`];
+          : [`${pad}${key}: ${plainScalar(value)}`];
 
   if (at < 0) lines.splice(blk.start + 1, 0, ...written);
   else lines.splice(at, endOfField - at, ...written);
@@ -1288,6 +1548,7 @@ const ICON = {
   branch: "<path d='M6 4v6a4 4 0 0 0 4 4h8'/><path d='M6 20v-4'/><path d='M15 11l3 3-3 3'/>",
   each:   "<rect x='3' y='4' width='7' height='7' rx='1.5'/><rect x='3' y='14' width='7' height='7' rx='1.5'/><path d='M14 7.5h7M14 17.5h7'/>",
   agent:  "<circle cx='12' cy='12' r='3.2'/><path d='M12 2v3M12 19v3M2 12h3M19 12h3'/><path d='M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1'/>",
+  use:    "<rect x='3' y='3' width='8' height='8' rx='2'/><rect x='13' y='13' width='8' height='8' rx='2'/><path d='M11 7h4a2 2 0 0 1 2 2v4'/>",
 };
 const svgIcon = t => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICON[t] || ICON.prompt}</svg>`;
 const esc = s => String(s).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
@@ -1298,6 +1559,10 @@ const V = {
   pos: new Map(), custom: new Map(),
   zoom: 1, panX: 0, panY: 0, sel: null, sig: "", running: false,
   status: new Map(), values: new Map(),
+  // What the last run left behind, so one step can be re-run without paying for
+  // everything above it again. lastFrom says where it came from.
+  last: new Map(), lastFrom: "", stepResultFor: "",
+  extensions: new Map(),
   usage: { calls: 0, in: 0, out: 0 },
   undo: [], redo: [], lastTyped: 0,
 };
@@ -1407,6 +1672,9 @@ function renderGraph() {
     world.innerHTML = g.nodes.map(n => {
       const body = n.type === "input" ? "given when you run it"
         : n.type === "branch" ? n.routes.map(r => `${r.on} \u2192 ${r.target}`).join("\n")
+        : n.type === "use" ? (n.sub
+            ? `runs ${n.sub.title} (${n.sub.nodes.filter(x => x.type !== "input").length} steps)`
+            : `${String(n.step.pipeline ?? "").trim() || "no pipeline"} \u2014 not found`)
         : String(n.step.goal ?? n.step.prompt ?? n.step.text ?? n.step.value ?? "").trim().slice(0, 90) || "\u2014";
       const chips = (n.uses || []).length
         ? `<div class="tools">${n.uses.map(t => `<span class="tchip">${esc(t)}</span>`).join("")}</div>` : "";
@@ -1519,10 +1787,18 @@ const pickStep = (key, val, names) =>
   `<select data-key="${key}"><option value=""></option>${names.map(n =>
     `<option value="${esc(n)}"${n === val ? " selected" : ""}>${esc(n)}</option>`).join("")}</select>`;
 
+const savedNames = () => { try { return JSON.parse(localStorage.getItem("junction.library") || "{}"); } catch (e) { return {}; } };
+
 function renderInspector() {
   const g = V.graph, box = $("ispBody");
   const n = V.sel && g.byName.get(V.sel);
   $("insp").classList.toggle("on", !!n);
+  // A result belongs to the step it came from; showing it under another is a lie.
+  if (!n || V.stepResultFor !== n.name) {
+    $("ispRun").className = "";
+    $("ispRun").innerHTML = "";
+    if (!n) V.stepResultFor = "";
+  }
   if (!n) return;
   $("ispTitle").textContent = n.type === "input" ? "Input" : TYPES[n.type].label;
 
@@ -1574,11 +1850,26 @@ function renderInspector() {
       "Use <code>{{item}}</code> for the one being handled."));
   } else if (n.type === "text") {
     rows.push(fieldRow("Text", areaFor("text", s.text, 6), "No model call, so this one is free."));
+  } else if (n.type === "use") {
+    const saved = Object.keys(savedNames()).sort();
+    rows.push(fieldRow("Pipeline", saved.length
+      ? `<select data-key="pipeline"><option value=""></option>${saved.map(p =>
+          `<option value="${esc(p)}"${p === String(s.pipeline || "") ? " selected" : ""}>${esc(p)}</option>`).join("")}</select>`
+      : `<p class="none">Nothing saved yet. Save a pipeline first and it can be used here.</p>`,
+      "It runs, and hands back whatever it returns."));
+    if (n.sub) {
+      const given = s.with && typeof s.with === "object" ? s.with : {};
+      rows.push(fieldRow("Give it", `<div class="routes">${n.sub.inputs.map(i =>
+        `<div class="route"><span class="ar">${esc(i)}</span>
+          <input data-with="${esc(i)}" value="${esc(String(given[i] ?? ""))}"
+            placeholder="{{something}}" spellcheck="false" /></div>`).join("")}</div>`,
+        n.sub.inputs.length ? "" : "It takes nothing."));
+    }
   } else {
     rows.push(fieldRow("Prompt", areaFor("prompt", s.prompt, 6)));
   }
 
-  if (n.type !== "text" && n.type !== "branch") {
+  if (n.type !== "text" && n.type !== "branch" && n.type !== "use") {
     rows.push(fieldRow("System", areaFor("system", s.system, 3), "Optional. Sets the voice and the rules."));
     rows.push(fieldRow("Model", lineFor("model", s.model, conn().model || "default"),
       "Optional. Overrides the model for this step only."));
@@ -1591,6 +1882,7 @@ function renderInspector() {
   }
 
   rows.push(`<div class="ifoot">
+    <button class="btn go" data-runstep title="Call the model for this step only, reusing what the last run produced">Run this step</button>
     <button class="btn" data-jump>Show in YAML</button>
     <button class="btn danger" data-del>Delete step</button>
   </div>`);
@@ -1729,6 +2021,8 @@ function toolSpec(tool) {
 
 async function runTool(tool, args) {
   if (!tool) throw new Error("unknown tool");
+  const kind = TOOL_KINDS[tool.kind];
+  if (kind && kind.custom) return String(await kind.run({ ...tool }, { ...args }));
   if (tool.kind === "clock") return new Date().toISOString();
   if (tool.kind === "calc") return String(calcExpression(args.expression));
 
@@ -1829,20 +2123,18 @@ function setStep(name, state, text, ms) {
   renderGraph();
 }
 
-/* Every tool call is written into the run panel as it happens. An agent that
-   works invisibly is an agent you cannot debug. */
-function traceEvent(name, ev) {
-  const el = stepPanel(name);
-  el.classList.add("open");
-  const box = el.querySelector(".trace");
+/* Every tool call is written down as it happens. An agent that works invisibly
+   is an agent you cannot debug. Shared, because the run panel and the inspector
+   both need to show the same thing. */
+function traceInto(box, ev) {
+  if (!box) return;
+  const row = document.createElement("div");
   if (ev.kind === "think") {
-    const row = document.createElement("div");
     row.className = "tr think";
     row.textContent = `thinking \u2014 step ${ev.turn} of ${ev.max}`;
     box.appendChild(row);
     return;
   }
-  const row = document.createElement("div");
   row.className = "tr call" + (ev.failed ? " bad" : "");
   const args = Object.entries(ev.args || {}).map(([k, v]) => `${k}: ${v}`).join(", ");
   row.innerHTML = `<b>${esc(ev.name)}</b>${args ? `<span class="ar">${esc(args)}</span>` : ""}
@@ -1851,11 +2143,259 @@ function traceEvent(name, ev) {
   box.scrollTop = box.scrollHeight;
 }
 
+function traceEvent(name, ev) {
+  const el = stepPanel(name);
+  el.classList.add("open");
+  traceInto(el.querySelector(".trace"), ev);
+}
+
 function renderUsage() {
   const u = V.usage;
   $("runUse").textContent = u.calls
     ? `${u.calls} call${u.calls === 1 ? "" : "s"} \u00b7 ${u.in + u.out} tokens`
     : "";
+}
+
+/* One step, given values that already exist. The whole-pipeline loop and the
+   single-step button both come through here, so they cannot drift apart about
+   what a step actually does. */
+async function runOneStep(cfg, n, g, values, hooks = {}) {
+  const onTrace = hooks.onTrace || (() => {});
+  const onProgress = hooks.onProgress || (() => {});
+
+  const custom = TYPES[n.type] && TYPES[n.type].custom;
+  if (custom) {
+    // A custom step gets the model and the values, and nothing else: no page,
+    // no key, no registries. What it returns is the step's value.
+    const ctx = {
+      values: new Map(values),
+      fill: s => fillTemplate(s, values),
+      ask: (prompt, options = {}) => withRetry(n.step, () => callModel(cfg, {
+        model: options.model || n.step.model,
+        system: options.system === undefined ? fillTemplate(n.step.system, values) : options.system,
+        prompt: String(prompt ?? ""),
+        json: options.json === undefined ? n.step.json : options.json,
+        temperature: options.temperature === undefined ? n.step.temperature : options.temperature,
+      })),
+      report: note => onProgress(String(note ?? ""), 0),
+    };
+    return { value: await TYPES[n.type].run({ ...n.step }, ctx) };
+  }
+  if (n.type === "text") return { value: fillTemplate(n.step.text, values) };
+
+  if (n.type === "branch") {
+    const on = String(values.get(String(n.step.on).trim()) || "").trim().toLowerCase();
+    const chose = n.routes.find(r => r.on !== "else" && on.includes(r.on.toLowerCase()))
+      || n.routes.find(r => r.on === "else") || null;
+    return { value: chose ? chose.target : "", chose };
+  }
+
+  if (n.type === "agent")
+    return { value: await withRetry(n.step, () =>
+      runAgent(cfg, n, g, values, ev => onTrace(n.name, ev))) };
+
+  if (n.type === "use") {    if (!n.sub) throw new Error(`pipeline "${n.step.pipeline}" could not be loaded`);
+    const given = new Map();
+    for (const [k, v] of Object.entries(n.step.with || {}))
+      given.set(k, fillTemplate(String(v ?? ""), values));
+    // Its steps are reported under this one's name, so a nested run is still
+    // something you can watch rather than a box that returns an answer.
+    const inner = await executePipeline(cfg, n.sub, given, {
+      onStep: (step, state, text, ms) => (hooks.onStep || (() => {}))(`${n.name} \u203a ${step}`, state, text, ms),
+      onTrace: (step, ev) => onTrace(`${n.name} \u203a ${step}`, ev),
+    });
+    return { value: inner.values.get(n.sub.output) };
+  }
+
+  if (n.type === "each") {
+    const items = asList(values.get(String(n.step.over).trim()));
+    const width = Math.max(1, Math.min(20, Number(n.step.concurrent) || 1));
+    const outs = new Array(items.length);
+    let next = 0, done = 0;
+    // A bounded pool rather than all at once: rate limits are real, and a
+    // hundred requests in flight is how you find that out the hard way.
+    const worker = async () => {
+      while (next < items.length) {
+        const k = next++;
+        const sub = new Map(values); sub.set("item", items[k]);
+        outs[k] = await withRetry(n.step, () => callModel(cfg, {
+          model: n.step.model, system: fillTemplate(n.step.system, sub),
+          prompt: fillTemplate(n.step.prompt, sub), json: n.step.json, temperature: n.step.temperature,
+        }));
+        onProgress(++done, items.length);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));
+    return { value: outs, items: items.length };
+  }
+
+  return { value: await withRetry(n.step, () => callModel(cfg, {
+    model: n.step.model, system: fillTemplate(n.step.system, values),
+    prompt: fillTemplate(n.step.prompt, values), json: n.step.json, temperature: n.step.temperature,
+  })) };
+}
+
+/* One run of the pipeline, with no idea where it is being shown. The Run button
+   and the test runner both come through here, so what a case checks is exactly
+   what a run does — a test against a second implementation proves nothing. */
+async function executePipeline(cfg, g, inputs, hooks = {}) {
+  const onStep = hooks.onStep || (() => {});
+  const onTrace = hooks.onTrace || (() => {});
+  const values = new Map();
+  for (const i of g.inputs) values.set(i, inputs.get(i) ?? "");
+  const skipped = new Set();
+  // What each step actually did, which is what the diagnosis reads afterwards.
+  const ran = new Map();
+
+  for (const name of g.order) {
+    const n = g.byName.get(name);
+    if (!n || n.type === "input") continue;
+    if (skipped.has(name) || n.deps.some(d => skipped.has(d))) {
+      skipped.add(name);
+      onStep(name, "", "skipped \u2014 the branch went another way");
+      continue;
+    }
+    const started = performance.now();
+    onStep(name, "run", "");
+    try {
+      const { value, chose, items } = await runOneStep(cfg, n, g, values, {
+        onTrace,
+        onStep,
+        onProgress: (k, total) => onStep(name, "run", `item ${k} of ${total}\u2026`),
+      });
+      values.set(name, value);
+      ran.set(name, { state: "ok", ms: Math.round(performance.now() - started), items });
+      if (n.type === "branch") {
+        for (const r of n.routes) if (!chose || r.target !== chose.target) skipped.add(r.target);
+        onStep(name, "ok", `chose ${chose ? chose.target : "nothing"}`,
+          Math.round(performance.now() - started));
+        continue;
+      }
+      onStep(name, "ok", Array.isArray(value) ? value.join("\n\n\u2014\u2014\n\n") : String(value),
+        Math.round(performance.now() - started));
+    } catch (e) {
+      ran.set(name, { state: "err", ms: Math.round(performance.now() - started), error: String(e.message || e) });
+      onStep(name, "err", String(e.message || e), Math.round(performance.now() - started));
+      throw Object.assign(e, { ran });
+    }
+  }
+  return { values, skipped, ran };
+}
+
+/* What a single step can be run with right now: inputs come from the Inputs tab,
+   everything else from whatever the last run left behind. Reported rather than
+   decided, so the caller can explain itself instead of just refusing. */
+function valuesForStep(g, n, last, inputs) {
+  const values = new Map();
+  const reused = [], missing = [];
+  for (const d of n.deps) {
+    if (g.inputs.includes(d)) { values.set(d, inputs.get(d) ?? ""); reused.push(d); continue; }
+    if (last.has(d)) { values.set(d, last.get(d)); reused.push(d); }
+    else missing.push(d);
+  }
+  return { values, reused, missing };
+}
+
+/* The inner loop of prompt work is: change the wording, look at what comes back.
+   Re-running everything upstream to see one step costs time and money for
+   answers you already have, so this reuses them and calls the model once. The
+   answer lands under the prompt, because the run panel would cover it. */
+async function runStepAlone(name) {
+  const g = V.graph, cfg = conn();
+  const n = g.byName.get(name);
+  if (!n || n.type === "input") return;
+  if (g.problems.some(p => p.level === "error")) return toast("Fix the problems first");
+  if (!cfg.base) { openModal("mKey"); return toast("Choose an endpoint first"); }
+
+  const { values, reused, missing } = valuesForStep(g, n, V.last, V.values);
+  if (missing.length)
+    return toast(`Nothing to feed ${missing.join(" and ")} yet \u2014 run the whole pipeline once`);
+
+  const box = $("ispRun");
+  V.stepResultFor = name;
+  box.className = "on";
+  box.innerHTML = `<div class="srh"><span class="dotst run"></span><span class="srnote">running\u2026</span></div>
+    <div class="trace"></div><div class="out"></div>`;
+  const note = box.querySelector(".srnote");
+  const before = V.last.get(name);
+  const started = performance.now();
+
+  V.running = true; renderStatus();
+  try {
+    const { value, chose } = await runOneStep(cfg, n, g, values, {
+      onTrace: (_step, ev) => traceInto(box.querySelector(".trace"), ev),
+      onProgress: (k, total) => { note.textContent = `item ${k} of ${total}\u2026`; },
+    });
+    V.last.set(name, value);
+    V.status.set(name, "ok");
+    box.querySelector(".dotst").className = "dotst ok";
+    box.querySelector(".out").textContent = n.type === "branch"
+      ? `chose ${chose ? chose.target : "nothing"}` : asText(value);
+    note.textContent = `${Math.round(performance.now() - started)}ms \u00b7 `
+      + (reused.length ? `reused ${reused.join(", ")}${V.lastFrom ? " from " + V.lastFrom : ""}` : "nothing reused");
+    showAgainst(box, before, value);
+  } catch (e) {
+    V.status.set(name, "err");
+    box.querySelector(".dotst").className = "dotst err";
+    note.textContent = Math.round(performance.now() - started) + "ms";
+    const out = box.querySelector(".out");
+    out.className = "out bad";
+    const read = explainFailure(String(e.message || e), cfg);
+    out.textContent = read.cause ? `${read.cause}\n\n${read.detail}\n\n${e.message || e}` : String(e.message || e);
+  } finally {
+    V.running = false; renderStatus(); renderGraph();
+  }
+}
+
+const asText = v => (Array.isArray(v) ? v.join("\n\n\u2014\u2014\n\n") : String(v ?? ""));
+
+/* Whether the change helped is the actual question, and you cannot answer it
+   from the new answer alone. */
+function showAgainst(box, before, after) {
+  if (before === undefined) return;
+  const note = document.createElement("div");
+  note.className = "against";
+  note.innerHTML = asText(before) === asText(after)
+    ? `<div class="rs">same answer as before</div>`
+    : `<details><summary>before this change</summary>
+        <div class="rs was">${esc(asText(before).slice(0, 2000))}</div></details>`;
+  box.appendChild(note);
+}
+
+/* Findings sit above the run, because a wall of output you have to read is how
+   the slow step stays slow for a month. Each one that can be acted on carries
+   the button that acts on it. */
+function renderFindings(findings) {
+  const old = $("runBody").querySelector(".findings");
+  if (old) old.remove();
+  if (!findings.length) return;
+  const box = document.createElement("div");
+  box.className = "findings";
+  box.innerHTML = findings.map((f, i) => `<div class="find ${f.level}">
+    <div class="ft">${esc(f.title)}</div>
+    <div class="fd">${esc(f.detail)}</div>
+    ${f.evidence ? `<div class="fe">${esc(f.evidence)}</div>` : ""}
+    ${f.fix ? `<button class="btn go fixbtn" data-fix="${i}">${esc(f.fix.label)}</button>` : ""}
+  </div>`).join("");
+  V.findings = findings;
+  $("runBody").prepend(box);
+}
+
+function applyFix(finding) {
+  const fix = finding.fix;
+  if (!fix) return;
+  if (fix.kind === "connection") return openModal("mKey");
+  if (fix.kind === "field") {
+    const step = finding.step;
+    if (!V.graph.byName.get(step)) return toast("That step is gone now");
+    applyField(step, fix.field, fix.value);
+    toast(`${step}: ${fix.field} ${fix.value}`);
+  }
+}
+
+function reportFindings(graph, ran) {
+  try { renderFindings(diagnose(graph, ran)); }
+  catch (e) { /* a bad reading must never bury the run it was reading */ }
 }
 
 async function runPipeline() {
@@ -1867,60 +2407,10 @@ async function runPipeline() {
   V.usage = { calls: 0, in: 0, out: 0 }; renderUsage();
   $("run").classList.add("on"); $("runBody").innerHTML = ""; $("runStat").textContent = "running";
 
-  const values = new Map();
-  for (const i of g.inputs) values.set(i, V.values.get(i) || "");
-  const skipped = new Set();
   const t0 = performance.now();
-
   try {
-    for (const name of g.order) {
-      const n = g.byName.get(name);
-      if (!n || n.type === "input") continue;
-      if (skipped.has(name) || n.deps.some(d => skipped.has(d))) {
-        skipped.add(name); setStep(name, "", "skipped \u2014 the branch went another way"); continue;
-      }
-      const started = performance.now();
-      setStep(name, "run", "");
-      try {
-        if (n.type === "text") {
-          values.set(name, fillTemplate(n.step.text, values));
-        } else if (n.type === "branch") {
-          const on = String(values.get(String(n.step.on).trim()) || "").trim().toLowerCase();
-          const hit = n.routes.find(r => r.on !== "else" && on.includes(r.on.toLowerCase()))
-            || n.routes.find(r => r.on === "else");
-          for (const r of n.routes) if (!hit || r.target !== hit.target) skipped.add(r.target);
-          values.set(name, hit ? hit.target : "");
-          setStep(name, "ok", `chose ${hit ? hit.target : "nothing"}`, Math.round(performance.now() - started));
-          continue;
-        } else if (n.type === "agent") {
-          values.set(name, await withRetry(n.step, () =>
-            runAgent(cfg, n, g, values, ev => traceEvent(name, ev))));
-        } else if (n.type === "each") {
-          const items = asList(values.get(String(n.step.over).trim()));
-          const outs = [];
-          for (let k = 0; k < items.length; k++) {
-            const sub = new Map(values); sub.set("item", items[k]);
-            setStep(name, "run", `item ${k + 1} of ${items.length}\u2026`);
-            outs.push(await withRetry(n.step, () => callModel(cfg, {
-              model: n.step.model, system: fillTemplate(n.step.system, sub),
-              prompt: fillTemplate(n.step.prompt, sub), json: n.step.json, temperature: n.step.temperature,
-            })));
-          }
-          values.set(name, outs);
-        } else {
-          values.set(name, await withRetry(n.step, () => callModel(cfg, {
-            model: n.step.model, system: fillTemplate(n.step.system, values),
-            prompt: fillTemplate(n.step.prompt, values), json: n.step.json, temperature: n.step.temperature,
-          })));
-        }
-        const v = values.get(name);
-        setStep(name, "ok", Array.isArray(v) ? v.join("\n\n\u2014\u2014\n\n") : String(v),
-          Math.round(performance.now() - started));
-      } catch (e) {
-        setStep(name, "err", String(e.message || e), Math.round(performance.now() - started));
-        throw e;
-      }
-    }
+    const { values, ran } = await executePipeline(cfg, g, V.values, { onStep: setStep, onTrace: traceEvent });
+    V.last = values; V.lastFrom = "the last run";
     const out = values.get(g.output);
     $("runStat").textContent = Math.round(performance.now() - t0) + "ms";
     if (out !== undefined) {
@@ -1929,15 +2419,338 @@ async function runPipeline() {
       el.querySelector(".dotst").className = "dotst ok";
       el.querySelector(".out").textContent = Array.isArray(out) ? out.join("\n\n") : String(out);
     }
+    reportFindings(g, ran);
   } catch (e) {
     $("runStat").textContent = "failed";
+    reportFindings(g, e.ran || new Map());
   } finally {
     V.running = false; renderStatus();
   }
 }
 
+/* Reading the run against what the case asked for. Kept apart from the running
+   and the drawing so it can be tested without a model or a browser. */
+function judgeCase(testCase, values, skipped = new Set()) {
+  return testCase.expect.map(({ target, checks }) => {
+    if (skipped.has(target))
+      return { target, ok: false, missed: true, fails: [], got: "" };
+    const got = checkText(values.get(target));
+    const fails = checkValue(values.get(target), checks);
+    return { target, ok: !fails.length, missed: false, fails, got };
+  });
+}
+
+function casePanel(name) {
+  const el = document.createElement("div");
+  el.className = "step open";
+  el.innerHTML = `<div class="sh"><span class="dotst run"></span><span class="nm">${esc(name)}</span>
+    <span class="ms"></span></div><div class="out"></div>`;
+  el.querySelector(".sh").addEventListener("click", () => el.classList.toggle("open"));
+  $("runBody").appendChild(el);
+  return el;
+}
+
+function renderCase(el, results, ms) {
+  const failed = results.filter(r => !r.ok);
+  el.querySelector(".dotst").className = "dotst " + (failed.length ? "err" : "ok");
+  el.querySelector(".ms").textContent = ms + "ms";
+  el.classList.toggle("open", failed.length > 0);
+  el.querySelector(".out").innerHTML = results.map(r => {
+    if (r.ok) return `<div class="chk ok">${esc(r.target)} \u2713</div>`;
+    if (r.missed) return `<div class="chk bad">${esc(r.target)} never ran \u2014 the branch went another way</div>`;
+    return r.fails.map(f =>
+      `<div class="chk bad">${esc(r.target)} ${esc(CHECKS[f.check].label)} <b>${esc(f.want)}</b>
+        <div class="rs">got: ${esc(f.got.slice(0, 400)) || "(nothing)"}</div></div>`).join("");
+  }).join("");
+}
+
+/* Every case runs the whole pipeline from clean values, so one case cannot
+   quietly change what the next one sees. */
+async function runTests() {
+  const g = V.graph, cfg = conn();
+  if (g.problems.some(p => p.level === "error")) return toast("Fix the problems first");
+  if (!g.tests.length) return toast("Add a tests: block first");
+  if (!cfg.base) { openModal("mKey"); return toast("Choose an endpoint first"); }
+
+  V.running = true; V.status.clear(); renderStatus();
+  V.usage = { calls: 0, in: 0, out: 0 }; renderUsage();
+  $("run").classList.add("on"); $("runBody").innerHTML = ""; $("runStat").textContent = "testing";
+
+  let passed = 0;
+  const t0 = performance.now();
+  let lastRan = new Map();
+  for (const c of g.tests) {
+    const el = casePanel(c.name);
+    const started = performance.now();
+    const note = el.querySelector(".ms");
+    try {
+      const { values, skipped, ran } = await executePipeline(cfg, g, c.values, {
+        onStep: (name, state) => { if (state === "run") note.textContent = name + "\u2026"; },
+      });
+      lastRan = ran;
+      // Kept so a failing case can be poked at one step at a time.
+      V.last = values; V.lastFrom = "case " + c.name;
+      const results = judgeCase(c, values, skipped);
+      if (results.every(r => r.ok)) passed++;
+      renderCase(el, results, Math.round(performance.now() - started));
+    } catch (e) {
+      lastRan = e.ran || lastRan;
+      el.querySelector(".dotst").className = "dotst err";
+      note.textContent = Math.round(performance.now() - started) + "ms";
+      el.querySelector(".out").innerHTML = `<div class="chk bad">the run failed: ${esc(String(e.message || e))}</div>`;
+    }
+  }
+
+  const total = g.tests.length;
+  $("runStat").textContent = `${passed}/${total} passed \u00b7 ${Math.round(performance.now() - t0)}ms`;
+  reportFindings(g, lastRan);
+  V.running = false; renderStatus();
+  toast(passed === total ? `All ${total} passed` : `${total - passed} of ${total} failed`);
+}
+
+/* ============================================================ diagnosis
+   An API error is usually a sentence about someone else's internals. These turn
+   the common ones into what actually went wrong and the thing to do about it.
+   The original message is always kept: this adds the reading, it never replaces
+   the evidence. */
+function explainFailure(message, cfg = {}) {
+  const m = String(message || "");
+  const local = /localhost|127\.0\.0\.1/.test(String(cfg.base || ""));
+  const connection = { label: "Open connection settings", kind: "connection" };
+
+  if (/Failed to fetch|NetworkError|Load failed|ERR_CONNECTION/i.test(m)) {
+    return local
+      ? { cause: "Nothing answered on localhost. Is the local model actually running?",
+          detail: "Ollama needs `ollama serve`, and it has to allow this page: "
+            + "OLLAMA_ORIGINS=* ollama serve.", fix: connection }
+      : { cause: "The browser blocked the call before it reached the endpoint.",
+          detail: "Almost always CORS: the endpoint did not say a web page may call it. "
+            + "Your key is probably fine \u2014 this is a browser-only limit, and the exported "
+            + "code does not have it because it does not run in a browser.", fix: connection };
+  }
+  if (/\b401\b|unauthorized|invalid[_ ]api[_ ]key/i.test(m))
+    return { cause: "The endpoint refused the key.",
+      detail: "Either it is wrong, or it belongs to a different provider than the endpoint.",
+      fix: connection };
+  if (/\b403\b|forbidden/i.test(m))
+    return { cause: "The key is valid but not allowed to do this.",
+      detail: "Usually billing, a region restriction, or a model this account cannot reach.",
+      fix: connection };
+  if (/\b404\b/.test(m))
+    return { cause: "That address is not there.",
+      detail: "Most often the endpoint is missing its /v1, or the model name is not one "
+        + "this provider serves.", fix: connection };
+  if (/\b429\b|rate.?limit|too many requests/i.test(m))
+    return { cause: "You are being rate limited.",
+      detail: "The provider is asking you to slow down. A retry rides out the short ones.",
+      fix: { label: "Add retry: 2", kind: "field", field: "retry", value: 2 } };
+  if (/\b5\d\d\b|internal server error|overloaded/i.test(m))
+    return { cause: "The provider had a problem, not you.",
+      detail: "These are usually brief.",
+      fix: { label: "Add retry: 2", kind: "field", field: "retry", value: 2 } };
+  if (/context length|maximum context|too many tokens|context_length/i.test(m))
+    return { cause: "The prompt was longer than the model can read.",
+      detail: "Shorten what feeds this step, or split the work with an each step so each "
+        + "piece arrives on its own.", fix: null };
+  if (/model.*(not found|does not exist)|unknown model|no such model/i.test(m))
+    return { cause: "This endpoint does not have that model.",
+      detail: "The name has to be one this provider serves \u2014 they rarely match between "
+        + "providers.", fix: connection };
+  if (/used all \d+ steps/i.test(m))
+    return { cause: "The agent ran out of steps before it reached an answer.",
+      detail: "Either the goal needs to be narrower, or it needs more room to work.",
+      fix: { label: "Allow more steps", kind: "field", field: "max_steps", value: 12 } };
+  return { cause: "", detail: "", fix: null };
+}
+
+const SLOW_MS = 2000;        // below this, nobody is waiting on it
+const FANOUT_ITEMS = 3;      // fewer than this and running them at once saves nothing
+
+/* Reading the run rather than the pipeline. Everything here comes from what
+   actually happened, so it can say "this took 8 seconds" instead of guessing. */
+function diagnose(graph, runs) {
+  const found = [];
+  const entries = [...runs.entries()].filter(([, r]) => r);
+  const total = entries.reduce((sum, [, r]) => sum + (r.ms || 0), 0);
+
+  for (const [name, r] of entries) {
+    if (r.state !== "err") continue;
+    const read = explainFailure(r.error, conn());
+    found.push({
+      level: "error", step: name,
+      title: `${name} failed`,
+      detail: read.cause ? `${read.cause} ${read.detail}` : String(r.error || ""),
+      evidence: read.cause ? String(r.error || "") : "",
+      fix: read.fix,
+    });
+  }
+
+  for (const [name, r] of entries) {
+    const n = graph.byName.get(name);
+    if (!n || n.type !== "each" || r.state === "err") continue;
+    const items = r.items || 0;
+    if (items < FANOUT_ITEMS || Number(n.step.concurrent) > 1) continue;
+    const each = Math.round((r.ms || 0) / Math.max(1, items));
+    found.push({
+      level: "note", step: name,
+      title: `${name} runs its ${items} items one after another`,
+      detail: `About ${each}ms each, so ${r.ms}ms in total. They do not depend on each other, `
+        + `so they can go at once \u2014 four at a time is polite to a rate limit and roughly `
+        + `${Math.max(1, Math.round(items / 4))} rounds instead of ${items}.`,
+      fix: { label: "Run 4 at a time", kind: "field", field: "concurrent", value: 4 },
+    });
+  }
+
+  const slowest = entries.filter(([n]) => {
+    const node = graph.byName.get(n);
+    return node && node.type !== "text" && node.type !== "branch";
+  }).sort((a, b) => (b[1].ms || 0) - (a[1].ms || 0))[0];
+  if (slowest && slowest[1].ms >= SLOW_MS && !found.some(f => f.step === slowest[0])) {
+    const share = total ? Math.round((slowest[1].ms / total) * 100) : 0;
+    found.push({
+      level: "note", step: slowest[0],
+      title: `${slowest[0]} is the slow one`,
+      detail: `${slowest[1].ms}ms, ${share}% of the run. If it is doing something small, `
+        + `a smaller model on this step alone will usually do it faster.`,
+      fix: null,
+    });
+  }
+
+  // Steps that read nothing from each other could go together; that is a change
+  // to the pipeline's shape, so it is said rather than done.
+  const waiting = independentGroups(graph).filter(group =>
+    group.length > 1 && group.every(n => (runs.get(n) || {}).ms >= SLOW_MS));
+  for (const group of waiting) {
+    found.push({
+      level: "note", step: group[0],
+      title: `${group.join(" and ")} wait for each other for no reason`,
+      detail: "Neither reads the other, so the second one is only slow because it is second. "
+        + "Nothing here changes that for you \u2014 in the exported code they can be awaited together.",
+      fix: null,
+    });
+  }
+
+  return found;
+}
+
+/* Steps at the same depth that share no data: the ones that could run together. */
+function independentGroups(graph) {
+  const depth = new Map();
+  for (const name of graph.order) {
+    const n = graph.byName.get(name);
+    if (!n) continue;
+    depth.set(name, n.deps.length ? Math.max(...n.deps.map(d => (depth.get(d) ?? 0) + 1)) : 0);
+  }
+  const byDepth = new Map();
+  for (const n of graph.nodes) {
+    if (n.type === "input" || n.type === "text" || n.type === "branch") continue;
+    const d = depth.get(n.name) ?? 0;
+    if (!byDepth.has(d)) byDepth.set(d, []);
+    byDepth.get(d).push(n.name);
+  }
+  return [...byDepth.values()].filter(g => g.length > 1);
+}
+
+/* ============================================================ export
+   One neutral description of the program, so every language emits the same
+   pipeline rather than its own idea of one. Templates keep their {{references}};
+   each dialect decides how to interpolate them. Guards are described, not
+   written, because "if x contains y" is spelled differently everywhere. */
+function pipelinePlan(graph, options = {}) {
+  const used = new Set();
+  for (const n of graph.nodes) for (const t of n.uses || []) used.add(t);
+  const tools = [...used].map(t => graph.tools.get(t)).filter(Boolean);
+  const guards = new Map();
+  const steps = [];
+  for (const name of graph.order) {
+    const n = graph.byName.get(name);
+    if (!n || n.type === "input") continue;
+    const s = n.step;
+    const step = {
+      name, kind: n.type, guard: guards.get(name) || null,
+      model: s.model ? String(s.model) : "",
+      system: s.system ? String(s.system) : "",
+      json: !!s.json,
+      retry: Math.max(0, Math.min(5, Number(s.retry) || 0)),
+      temperature: s.temperature === undefined ? null : Number(s.temperature),
+    };
+    if (n.type === "text") step.text = String(s.text ?? "");
+    else if (n.type === "branch") {
+      step.on = String(s.on ?? "").trim();
+      step.routes = n.routes.map(r => ({ on: r.on, target: r.target }));
+      const named = n.routes.filter(r => r.on !== "else").map(r => r.on.toLowerCase());
+      for (const r of n.routes) {
+        guards.set(r.target, r.on === "else"
+          ? { on: name, none: named }
+          : { on: name, is: r.on.toLowerCase() });
+      }
+    } else if (n.type === "agent") {
+      step.goal = String(s.goal ?? "");
+      step.tools = [...n.uses];
+      step.maxSteps = Number(s.max_steps) > 0 ? Math.min(20, Number(s.max_steps)) : 0;
+    } else if (n.type === "use") {
+      step.pipeline = String(s.pipeline ?? "").trim();
+      step.fn = fnName(step.pipeline);
+      step.args = (n.sub ? n.sub.inputs : []).map(i => String((s.with || {})[i] ?? ""));
+    } else if (n.type === "each") {
+      step.over = String(s.over ?? "").trim();
+      step.prompt = String(s.prompt ?? "");
+      step.concurrent = Math.max(1, Math.min(20, Number(s.concurrent) || 1));
+    } else {
+      step.prompt = String(s.prompt ?? "");
+    }
+    // A custom step keeps everything it was written with: its emitter is the
+    // only thing that knows which fields matter.
+    if (TYPES[n.type] && TYPES[n.type].custom) step.fields = { ...s };
+    steps.push(step);
+  }
+
+  const cases = graph.tests.map(c => ({
+    name: c.name,
+    inputs: Object.fromEntries(c.values),
+    expect: Object.fromEntries(c.expect.map(e => [e.target, normalizeChecks(e.checks)])),
+  }));
+
+  return {
+    name: graph.name,
+    inputs: [...graph.inputs],
+    output: graph.output,
+    fn: fnName(graph.title || graph.name),
+    // The pipelines this one uses, deepest first, so the plan alone is enough
+    // for a language to emit the whole thing.
+    uses: (options.nested === false ? [] :
+      [...usedPipelines(graph).values()].map(g => pipelinePlan(g, { nested: false }))),
+    steps, tools, cases,
+    needs: {
+      retry: steps.some(s => s.retry > 0),
+      agents: steps.some(s => s.kind === "agent"),
+      each: steps.some(s => s.kind === "each"),
+      http: tools.some(t => t.kind === "http"),
+      calc: tools.some(t => t.kind === "calc"),
+      clock: tools.some(t => t.kind === "clock"),
+      pool: steps.some(s => s.kind === "each" && s.concurrent > 1),
+      // With cases the body moves so the checks can see every step.
+      tests: cases.length > 0 && steps.length > 0,
+      nested: steps.some(s => s.kind === "use"),
+    },
+  };
+}
+
+/* A pipeline is named for people; a function has to be named for a compiler. */
+function fnName(title) {
+  const base = String(title || "pipeline").trim().toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return /^[a-z]/.test(base) ? base : "pipeline_" + base;
+}
+
 /* ============================================================ python export */
 function pyQuote(s) { return String(s).replace(/\\/g, "\\\\").replace(/"""/g, '\\"\\"\\"'); }
+
+/* "the branch said billing" and "the branch said none of them", in Python. */
+function pyGuard(g) {
+  if (g.is !== undefined) return `${JSON.stringify(g.is)} in ${g.on}`;
+  return g.none.map(v => `${JSON.stringify(v)} not in ${g.on}`).join(" and ") || "True";
+}
 function pyTemplate(s, wrap) {
   // f-strings read braces as code, so literal ones are doubled before refs go in
   return pyQuote(String(s === undefined || s === null ? "" : s))
@@ -1945,45 +2758,154 @@ function pyTemplate(s, wrap) {
     .replace(/\{\{\{\{\s*([a-zA-Z_]\w*)\s*\}\}\}\}/g, wrap ? `{${wrap}($1)}` : "{$1}");
 }
 
+/* A tool's parameters are named by whoever wrote the tool, so a tool taking a
+   `url` would collide with the local the generated function needs. */
+function localNames(params) {
+  const taken = new Set(Object.keys(params));
+  const free = base => { let name = base; while (taken.has(name)) name = "_" + name; return name; };
+  return { url: free("url"), headers: free("headers"), body: free("body") };
+}
+
 function pyTool(t) {
   const args = Object.keys(t.params);
+  const v = localNames(t.params);
   const L = [`def tool_${t.name}(${args.join(", ")}):`, `    """${pyQuote(t.description)}"""`];
+  const kind = TOOL_KINDS[t.kind];
+  if (kind && kind.custom) {
+    const write = kind.emit && kind.emit.python;
+    L.push(...(write ? [].concat(write({ ...t }, emitApi("python", t.name, "    "))) : []));
+    return L;
+  }
   if (t.kind === "clock") {
     L.push("    return datetime.now(timezone.utc).isoformat()");
   } else if (t.kind === "calc") {
     L.push("    return str(_calc(expression))");
   } else {
-    L.push(`    url = f"""${pyTemplate(t.url, "_q")}"""`);
+    L.push(`    ${v.url} = f"""${pyTemplate(t.url, "_q")}"""`);
     const hdr = Object.entries(t.headers)
-      .map(([k, v]) => `${JSON.stringify(k)}: f"""${pyTemplate(v)}"""`).join(", ");
-    L.push(`    headers = {${hdr}}`);
+      .map(([k, val]) => `${JSON.stringify(k)}: f"""${pyTemplate(val)}"""`).join(", ");
+    L.push(`    ${v.headers} = {${hdr}}`);
     if (t.method !== "GET" && t.method !== "HEAD" && t.body) {
-      L.push(`    body = f"""${pyTemplate(t.body)}"""`);
-      L.push('    headers.setdefault("Content-Type", "application/json")');
+      L.push(`    ${v.body} = f"""${pyTemplate(t.body)}"""`);
+      L.push(`    ${v.headers}.setdefault("Content-Type", "application/json")`);
     } else {
-      L.push("    body = None");
+      L.push(`    ${v.body} = None`);
     }
-    L.push(`    return _http(url, ${JSON.stringify(t.method)}, headers, body)`);
+    L.push(`    return _http(${v.url}, ${JSON.stringify(t.method)}, ${v.headers}, ${v.body})`);
   }
   return L;
 }
 
+/* The statements of one pipeline's body, shared by the root and by every
+   pipeline it uses, so a nested one is not a second-class citizen. */
+function pyStepLines(plan) {
+  const body = [];
+  for (const s of plan.steps) {
+    const ind = s.guard ? "        " : "    ";
+    if (s.guard) { body.push(`    ${s.name} = None`); body.push(`    if ${pyGuard(s.guard)}:`); }
+
+    const custom = customStepLines(s, "python", ind);
+    if (custom) { body.push(...custom); continue; }
+
+    const model = s.model ? `, model=${JSON.stringify(s.model)}` : "";
+    const jsonf = s.json ? ", json_mode=True" : "";
+    const temp = s.temperature !== null && !Number.isNaN(s.temperature)
+      ? `, temperature=${s.temperature}` : "";
+    const sys = s.system ? `, system=f"""${pyTemplate(s.system)}"""` : "";
+    const call = expr => (s.retry ? `_retry(${s.retry}, lambda: ${expr})` : expr);
+
+    if (s.kind === "text") {
+      body.push(`${ind}${s.name} = f"""${pyTemplate(s.text)}"""`);
+    } else if (s.kind === "branch") {
+      body.push(`${ind}${s.name} = str(${s.on}).strip().lower()`);
+    } else if (s.kind === "use") {
+      const passed = s.args.map(a => `f"""${pyTemplate(a)}"""`).join(", ");
+      body.push(`${ind}${s.name} = ${s.fn}(${passed})`);
+    } else if (s.kind === "agent") {
+      const list = `[${s.tools.map(t => JSON.stringify(t)).join(", ")}]`;
+      const steps = s.maxSteps ? `, max_steps=${s.maxSteps}` : "";
+      body.push(`${ind}${s.name} = ${call(`agent(f"""${pyTemplate(s.goal)}"""${sys}${model}, tools=${list}${steps})`)}`);
+    } else if (s.kind === "each") {
+      if (s.concurrent > 1) {
+        body.push(`${ind}with ThreadPoolExecutor(max_workers=${s.concurrent}) as pool:`);
+        body.push(`${ind}    ${s.name} = list(pool.map(`);
+        body.push(`${ind}        lambda item: ${call(`ask(f"""${pyTemplate(s.prompt)}"""${sys}${model}${jsonf}${temp})`)},`);
+        body.push(`${ind}        as_list(${s.over}),`);
+        body.push(`${ind}    ))`);
+      } else {
+        body.push(`${ind}${s.name} = []`);
+        body.push(`${ind}for item in as_list(${s.over}):`);
+        body.push(`${ind}    ${s.name}.append(${call(`ask(f"""${pyTemplate(s.prompt)}"""${sys}${model}${jsonf}${temp})`)})`);
+      }
+    } else {
+      body.push(`${ind}${s.name} = ${call(`ask(f"""${pyTemplate(s.prompt)}"""${sys}${model}${jsonf}${temp})`)}`);
+    }
+  }
+  return body;
+}
+
+/* A custom step or tool writes its own code. It is handed the escaping helpers
+   rather than left to reinvent them, because getting an f-string's braces wrong
+   is the easiest way to emit something that will not compile. */
+function emitApi(lang, name, indent) {
+  const py = lang === "python";
+  return {
+    lang, name, indent,
+    template: (s, wrap) => (py ? pyTemplate(s, wrap) : tsTemplate(s, wrap)),
+    string: s => (py ? `f"""${pyTemplate(s)}"""` : `\`${tsTemplate(s)}\``),
+    literal: v => JSON.stringify(v),
+  };
+}
+
+/* Lines for a step whose type came from an extension, or nothing when that
+   extension never taught it this language. */
+function customStepLines(s, lang, indent) {
+  const def = TYPES[s.kind];
+  const write = def && def.emit && def.emit[lang];
+  if (!write) return null;
+  const api = emitApi(lang, s.name, indent);
+  const written = write({ ...s.fields, name: s.name }, api);
+  if (Array.isArray(written)) return written;
+  const assign = lang === "python" ? `${indent}${s.name} = ${written}` : `${indent}const ${s.name} = ${written};`;
+  return [assign];
+}
+
+/* Helpers are emitted once for the whole tree: a pipeline this one uses may be
+   the only thing that needs the agent loop or a tool. */
+function wholeTree(graph) {
+  return [...usedPipelines(graph).values(), graph];
+}
+
 function exportPython(graph, cfg) {
+  const tree = wholeTree(graph);
   const used = new Set();
-  for (const n of graph.nodes) for (const t of n.uses || []) used.add(t);
-  const tools = [...used].map(t => graph.tools.get(t)).filter(Boolean);
-  const hasAgents = graph.nodes.some(n => n.type === "agent");
-  const needsRetry = graph.nodes.some(n => Number(n.step.retry) > 0);
+  const tools = [];
+  for (const g of tree)
+    for (const n of g.nodes)
+      for (const t of n.uses || []) {
+        if (used.has(t) || !g.tools.get(t)) continue;
+        used.add(t);
+        tools.push(g.tools.get(t));
+      }
+  const every = tree.flatMap(g => g.nodes);
+  const hasAgents = every.some(n => n.type === "agent");
+  const needsRetry = every.some(n => Number(n.step.retry) > 0);
+  const hasTests = graph.tests.length > 0;
+  const needsPool = every.some(n => n.type === "each" && Number(n.step.concurrent) > 1);
 
   const L = [];
   L.push(`"""${graph.name} \u2014 exported from Junction.`);
   L.push("");
   L.push("Plain Python. It needs the openai package and nothing else:");
   L.push("    pip install openai");
+  if (hasTests) { L.push(""); L.push("Run the checks that came with it:"); L.push("    python this_file.py test"); }
   L.push('"""');
   L.push("import json");
   L.push("import os");
+  if (hasTests) L.push("import re");
+  if (hasTests) L.push("import sys");
   if (needsRetry) L.push("import time");
+  if (needsPool) L.push("from concurrent.futures import ThreadPoolExecutor");
   if (tools.some(t => t.kind === "http")) { L.push("import urllib.parse"); L.push("import urllib.request"); }
   if (tools.some(t => t.kind === "clock")) L.push("from datetime import datetime, timezone");
   L.push("");
@@ -1995,7 +2917,7 @@ function exportPython(graph, cfg) {
   L.push(")");
   L.push(`MODEL = ${JSON.stringify(cfg.model || "gpt-4o-mini")}`);
   L.push("", "");
-  L.push("def ask(prompt, system=None, model=None, json_mode=False):");
+  L.push("def ask(prompt, system=None, model=None, json_mode=False, temperature=None):");
   L.push("    messages = []");
   L.push("    if system:");
   L.push('        messages.append({"role": "system", "content": system})');
@@ -2003,6 +2925,8 @@ function exportPython(graph, cfg) {
   L.push("    kwargs = {}");
   L.push("    if json_mode:");
   L.push('        kwargs["response_format"] = {"type": "json_object"}');
+  L.push("    if temperature is not None:");
+  L.push('        kwargs["temperature"] = temperature');
   L.push("    reply = client.chat.completions.create(");
   L.push("        model=model or MODEL, messages=messages, **kwargs");
   L.push("    )");
@@ -2117,56 +3041,50 @@ function exportPython(graph, cfg) {
     L.push('    raise RuntimeError("the agent used all %d steps without reaching an answer" % max_steps)');
   }
 
-  L.push("", "");
-  L.push(`def run(${graph.inputs.join(", ")}):`);
-
-  const body = [];
-  const guards = new Map();
-  for (const name of graph.order) {
-    const n = graph.byName.get(name);
-    if (!n || n.type === "input") continue;
-    const guard = guards.get(name);
-    const ind = guard ? "        " : "    ";
-    if (guard) { body.push(`    ${name} = None`); body.push(`    if ${guard}:`); }
-
-    const model = n.step.model ? `, model=${JSON.stringify(n.step.model)}` : "";
-    const jsonf = n.step.json ? ", json_mode=True" : "";
-    const sys = n.step.system ? `, system=f"""${pyTemplate(n.step.system)}"""` : "";
-    const tries = Number(n.step.retry) > 0 ? Math.min(5, Number(n.step.retry)) : 0;
-    const call = expr => (tries ? `_retry(${tries}, lambda: ${expr})` : expr);
-
-    if (n.type === "text") {
-      body.push(`${ind}${name} = f"""${pyTemplate(n.step.text)}"""`);
-    } else if (n.type === "branch") {
-      const on = String(n.step.on).trim();
-      body.push(`${ind}${name} = str(${on}).strip().lower()`);
-      for (const r of n.routes) {
-        if (r.on === "else") {
-          const others = n.routes.filter(x => x.on !== "else")
-            .map(x => `${JSON.stringify(x.on.toLowerCase())} not in ${name}`).join(" and ");
-          guards.set(r.target, others || "True");
-        } else {
-          guards.set(r.target, `${JSON.stringify(r.on.toLowerCase())} in ${name}`);
-        }
-      }
-    } else if (n.type === "agent") {
-      const list = `[${n.uses.map(t => JSON.stringify(t)).join(", ")}]`;
-      const steps = Number(n.step.max_steps) > 0 ? `, max_steps=${Math.min(20, Number(n.step.max_steps))}` : "";
-      body.push(`${ind}${name} = ${call(`agent(f"""${pyTemplate(n.step.goal)}"""${sys}${model}, tools=${list}${steps})`)}`);
-    } else if (n.type === "each") {
-      const over = String(n.step.over).trim();
-      body.push(`${ind}${name} = []`);
-      body.push(`${ind}for item in as_list(${over}):`);
-      body.push(`${ind}    ${name}.append(${call(`ask(f"""${pyTemplate(n.step.prompt)}"""${sys}${model}${jsonf})`)})`);
-    } else {
-      body.push(`${ind}${name} = ${call(`ask(f"""${pyTemplate(n.step.prompt)}"""${sys}${model}${jsonf})`)}`);
-    }
+  // A used pipeline is emitted as its own function, deepest first, so it is
+  // defined before anything calls it. That is what composition looks like in
+  // code you own: a function call, not a runtime.
+  const plan = pipelinePlan(graph);
+  for (const sub of usedPipelines(graph).values()) {
+    const subPlan = pipelinePlan(sub);
+    L.push("", "");
+    L.push(`def ${subPlan.fn}(${sub.inputs.join(", ")}):`);
+    L.push(`    """${pyQuote(sub.title || sub.name)}, used by this pipeline."""`);
+    const subBody = pyStepLines(subPlan);
+    L.push(...(subBody.length ? subBody : ["    pass"]));
+    L.push("");
+    L.push(`    return ${sub.output || "None"}`);
   }
+
+  L.push("", "");
+  // With cases to run, the body moves into run_all() so the checks can see every
+  // step, and run() stays the one-line answer most readers actually want.
+  const stepNames = plan.steps.map(s => s.name);
+  const wantsAll = plan.needs.tests;
+  const args = graph.inputs.join(", ");
+  L.push(`def ${wantsAll ? "run_all" : "run"}(${args}):`);
+  if (wantsAll) L.push('    """Every step\'s value, which is what the checks need to see."""');
+
+  const body = pyStepLines(plan);
   L.push(...(body.length ? body : ["    pass"]));
   L.push("");
-  L.push(`    return ${graph.output || "None"}`);
+  if (wantsAll) {
+    L.push(`    return {${stepNames.map(n => `${JSON.stringify(n)}: ${n}`).join(", ")}}`);
+    L.push("", "");
+    L.push(`def run(${args}):`);
+    L.push(graph.output
+      ? `    return run_all(${args})[${JSON.stringify(graph.output)}]`
+      : `    run_all(${args})\n    return None`);
+    L.push(...pyChecks(graph));
+  } else {
+    L.push(`    return ${graph.output || "None"}`);
+  }
   L.push("", "");
   L.push('if __name__ == "__main__":');
+  if (wantsAll) {
+    L.push('    if len(sys.argv) > 1 and sys.argv[1] == "test":');
+    L.push("        raise SystemExit(run_tests())");
+  }
   if (graph.inputs.length) {
     for (const i of graph.inputs) L.push(`    ${i} = input(${JSON.stringify(i + ": ")})`);
     L.push(`    print(run(${graph.inputs.join(", ")}))`);
@@ -2174,6 +3092,774 @@ function exportPython(graph, cfg) {
     L.push("    print(run())");
   }
   return L.join("\n") + "\n";
+}
+
+/* The cases, and a checker that says the same thing the page says. They travel
+   with the pipeline: a test you have to leave behind is a test you will lose. */
+/* Checks an extension added, that this pipeline actually uses. They have to
+   reach the exported file too: a check that quietly vanishes on export is worse
+   than one that was never written. */
+function extraChecks(plan) {
+  const used = new Set();
+  for (const c of plan.cases) for (const checks of Object.values(c.expect))
+    for (const name of Object.keys(checks)) used.add(name);
+  return [...used]
+    .filter(name => !BUILT_IN_CHECKS.includes(name) && CHECKS[name])
+    .map(name => [name, CHECKS[name]]);
+}
+
+function pyChecks(graph) {
+  const cases = graph.tests.map(c => ({
+    name: c.name,
+    inputs: Object.fromEntries(c.values),
+    expect: Object.fromEntries(c.expect.map(e => [e.target, normalizeChecks(e.checks)])),
+  }));
+
+  const L = ["", ""];
+  L.push("# --------------------------------------------------------------- tests");
+  L.push(`TESTS = ${JSON.stringify(cases, null, 4).replace(/\btrue\b/g, "True").replace(/\bfalse\b/g, "False")}`);
+  L.push("", "");
+  L.push("def _check(value, checks):");
+  L.push('    """Every failing check, not just the first."""');
+  L.push("    if value is None:");
+  L.push('        return ["never ran \\u2014 the branch went another way"]');
+  L.push('    got = "\\n\\n".join(value) if isinstance(value, list) else str(value)');
+  L.push("    got = got.strip()");
+  L.push("    low = got.lower()");
+  L.push("    fails = []");
+  L.push("    for check, want in checks.items():");
+  L.push("        if check == \"equals\" and low != str(want).strip().lower():");
+  L.push('            fails.append("is not exactly %r" % want)');
+  L.push('        elif check == "contains" and str(want).strip().lower() not in low:');
+  L.push('            fails.append("does not contain %r" % want)');
+  L.push('        elif check == "not_contains" and str(want).strip().lower() in low:');
+  L.push('            fails.append("should not contain %r" % want)');
+  L.push('        elif check == "matches" and not re.search(str(want), got):');
+  L.push('            fails.append("does not match %r" % want)');
+  L.push('        elif check == "is_one_of" and low not in [str(o).strip().lower() for o in want]:');
+  L.push('            fails.append("is not one of %r" % (want,))');
+  L.push('        elif check == "json" and _is_json(got) != bool(want):');
+  L.push('            fails.append("should be valid JSON" if want else "should not be JSON")');
+  L.push('        elif check == "not_empty" and bool(got) != bool(want):');
+  L.push('            fails.append("should not be empty" if want else "should be empty")');
+  for (const [name, def] of extraChecks(pipelinePlan(graph))) {
+    const cond = def.emit && def.emit.python;
+    L.push(`        elif check == ${JSON.stringify(name)}:`);
+    if (cond) {
+      L.push(`            if not (${cond}):`);
+      L.push(`                fails.append(${JSON.stringify(def.failed)} + " %r" % (want,))`);
+    } else {
+      // Loud, because a check that cannot be written here must not look like a pass.
+      L.push(`            raise NotImplementedError(`);
+      L.push(`                ${JSON.stringify(`the ${name} check has no Python form; add emit.python to the extension`)}`);
+      L.push("            )");
+    }
+  }
+  L.push("    return fails");
+  L.push("", "");
+  L.push("def _is_json(text):");
+  L.push("    try:");
+  L.push("        json.loads(text)");
+  L.push("        return True");
+  L.push("    except Exception:");
+  L.push("        return False");
+  L.push("", "");
+  L.push("def run_tests():");
+  L.push('    """Run every case. Returns the number that failed, so it works as an exit code."""');
+  L.push("    failed = 0");
+  L.push("    for case in TESTS:");
+  L.push("        try:");
+  L.push('            values = run_all(**case["inputs"])');
+  L.push("        except Exception as exc:");
+  L.push("            failed += 1");
+  L.push('            print("FAIL %s \\u2014 the run itself failed: %s" % (case["name"], exc))');
+  L.push("            continue");
+  L.push("        problems = []");
+  L.push('        for target, checks in case["expect"].items():');
+  L.push("            for problem in _check(values.get(target), checks):");
+  L.push('                problems.append("    %s %s" % (target, problem))');
+  L.push("        if problems:");
+  L.push("            failed += 1");
+  L.push('            print("FAIL %s" % case["name"])');
+  L.push('            print("\\n".join(problems))');
+  L.push("        else:");
+  L.push('            print("pass %s" % case["name"])');
+  L.push('    print("%d of %d passed" % (len(TESTS) - failed, len(TESTS)))');
+  L.push("    return failed");
+  return L;
+}
+
+/* ======================================================= typescript export
+   Same pipeline, same plan, different language. Node has had fetch and a
+   type-stripping runtime for a while, so this needs no build step either. */
+function tsQuote(s) {
+  return String(s ?? "").replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
+}
+function tsTemplate(s, wrap) {
+  // Escape first, so a brace the reader wrote can never become a slot.
+  return tsQuote(s).replace(/\{\{\s*([a-zA-Z_]\w*)\s*\}\}/g, wrap ? `\${${wrap}($1)}` : "${$1}");
+}
+function tsGuard(g) {
+  if (g.is !== undefined) return `${g.on}.includes(${JSON.stringify(g.is)})`;
+  return g.none.map(v => `!${g.on}.includes(${JSON.stringify(v)})`).join(" && ") || "true";
+}
+
+function tsTool(t) {
+  const args = Object.keys(t.params);
+  const v = localNames(t.params);
+  const sig = args.map(a => `${a}: string`).join(", ");
+  const L = [`/** ${t.description.replace(/\*\//g, "*\\/")} */`,
+             `async function tool_${t.name}(${sig}): Promise<string> {`];
+  const kind = TOOL_KINDS[t.kind];
+  if (kind && kind.custom) {
+    const write = kind.emit && kind.emit.typescript;
+    L.push(...(write ? [].concat(write({ ...t }, emitApi("typescript", t.name, "  "))) : []));
+    L.push("}");
+    return L;
+  }
+  if (t.kind === "clock") {
+    L.push("  return new Date().toISOString();");
+  } else if (t.kind === "calc") {
+    L.push("  return String(calc(expression));");
+  } else {
+    L.push(`  const ${v.url} = \`${tsTemplate(t.url, "q")}\`;`);
+    const hdr = Object.entries(t.headers)
+      .map(([k, val]) => `${JSON.stringify(k)}: \`${tsTemplate(val)}\``).join(", ");
+    L.push(`  const ${v.headers}: Record<string, string> = {${hdr}};`);
+    if (t.method !== "GET" && t.method !== "HEAD" && t.body) {
+      L.push(`  const ${v.body} = \`${tsTemplate(t.body)}\`;`);
+      L.push(`  ${v.headers}["Content-Type"] ??= "application/json";`);
+    } else {
+      L.push(`  const ${v.body} = null;`);
+    }
+    L.push(`  return http(${v.url}, ${JSON.stringify(t.method)}, ${v.headers}, ${v.body});`);
+  }
+  L.push("}");
+  return L;
+}
+
+/* The statements of one pipeline's body, shared by the root and by every
+   pipeline it uses. */
+function tsStepLines(plan) {
+  const L = [];
+  // A guarded step may never run, so it is declared before the branch with the
+  // type it would have produced rather than a shrug.
+  const produces = { each: "string[]", use: "unknown" };
+  for (const s of plan.steps) {
+    const ind = s.guard ? "    " : "  ";
+    if (s.guard) {
+      L.push(`  let ${s.name}: ${produces[s.kind] || "string"} | null = null;`);
+      L.push(`  if (${tsGuard(s.guard)}) {`);
+    }
+    const custom = customStepLines(s, "typescript", ind);
+    if (custom) {
+      L.push(...custom);
+      if (s.guard) L.push("  }");
+      continue;
+    }
+    const opts = [];
+    if (s.system) opts.push(`system: \`${tsTemplate(s.system)}\``);    if (s.model) opts.push(`model: ${JSON.stringify(s.model)}`);
+    if (s.json) opts.push("json: true");
+    if (s.temperature !== null && !Number.isNaN(s.temperature)) opts.push(`temperature: ${s.temperature}`);
+    const withOpts = opts.length ? `, { ${opts.join(", ")} }` : "";
+    const call = expr => (s.retry ? `retry(${s.retry}, () => ${expr})` : expr);
+    const decl = s.guard ? "" : "const ";
+
+    if (s.kind === "text") {
+      L.push(`${ind}${decl}${s.name} = \`${tsTemplate(s.text)}\`;`);
+    } else if (s.kind === "branch") {
+      L.push(`${ind}${decl}${s.name} = String(${s.on}).trim().toLowerCase();`);
+    } else if (s.kind === "use") {
+      const passed = s.args.map(a => `\`${tsTemplate(a)}\``).join(", ");
+      L.push(`${ind}${decl}${s.name} = await ${s.fn}(${passed});`);
+    } else if (s.kind === "agent") {
+      const aOpts = [];
+      if (s.system) aOpts.push(`system: \`${tsTemplate(s.system)}\``);
+      if (s.model) aOpts.push(`model: ${JSON.stringify(s.model)}`);
+      aOpts.push(`tools: [${s.tools.map(t => JSON.stringify(t)).join(", ")}]`);
+      if (s.maxSteps) aOpts.push(`maxSteps: ${s.maxSteps}`);
+      L.push(`${ind}${decl}${s.name} = await ${call(`agent(\`${tsTemplate(s.goal)}\`, { ${aOpts.join(", ")} })`)};`);
+    } else if (s.kind === "each") {
+      if (s.concurrent > 1) {
+        L.push(`${ind}${decl}${s.name}${s.guard ? "" : ": string[]"} = await pool(asList(${s.over}), ${s.concurrent}, (item) =>`);
+        L.push(`${ind}  ${call(`ask(\`${tsTemplate(s.prompt)}\`${withOpts})`)});`);
+      } else {
+        L.push(`${ind}${decl}${s.name}${s.guard ? "" : ": string[]"} = [];`);
+        L.push(`${ind}for (const item of asList(${s.over})) {`);
+        L.push(`${ind}  ${s.name}.push(await ${call(`ask(\`${tsTemplate(s.prompt)}\`${withOpts})`)});`);
+        L.push(`${ind}}`);
+      }
+    } else {
+      L.push(`${ind}${decl}${s.name} = await ${call(`ask(\`${tsTemplate(s.prompt)}\`${withOpts})`)};`);
+    }
+    if (s.guard) L.push("  }");
+  }
+  return L;
+}
+
+function exportTypeScript(graph, cfg) {
+  const plan = pipelinePlan(graph);
+  const tree = wholeTree(graph);
+  const subPlans = tree.slice(0, -1).map(pipelinePlan);
+  // Helpers cover the whole tree: a used pipeline may be the only agent here.
+  const needs = {};
+  for (const key of ["retry", "agents", "each", "http", "calc", "clock", "pool"])
+    needs[key] = [plan, ...subPlans].some(p => p.needs[key]);
+  needs.tests = plan.needs.tests;
+  const tools = [];
+  const seenTool = new Set();
+  for (const p of [...subPlans, plan])
+    for (const t of p.tools) {
+      if (seenTool.has(t.name)) continue;
+      seenTool.add(t.name);
+      tools.push(t);
+    }
+  const inputs = plan.inputs;
+  const L = [];
+
+  L.push(`/**`);
+  L.push(` * ${plan.name} \u2014 exported from Junction.`);
+  L.push(" *");
+  L.push(" * Plain TypeScript. It needs the openai package and nothing else:");
+  L.push(" *     npm install openai");
+  if (needs.tests) {
+    L.push(" *");
+    L.push(" * Run the checks that came with it:");
+    L.push(" *     node this_file.ts test");
+  }
+  L.push(" */");
+  L.push('import { fileURLToPath } from "node:url";');
+  L.push('import OpenAI from "openai";');
+  L.push("");
+  L.push("const client = new OpenAI({");
+  L.push(`  baseURL: ${JSON.stringify(cfg.base || "https://api.openai.com/v1")},`);
+  L.push('  apiKey: process.env.OPENAI_API_KEY ?? "",');
+  L.push("});");
+  L.push(`const MODEL = ${JSON.stringify(cfg.model || "gpt-4o-mini")};`);
+  L.push("");
+  L.push("type AskOptions = { system?: string; model?: string; json?: boolean; temperature?: number };");
+  L.push("");
+  L.push("async function ask(prompt: string, options: AskOptions = {}): Promise<string> {");
+  L.push("  const messages: any[] = [];");
+  L.push("  if (options.system) messages.push({ role: \"system\", content: options.system });");
+  L.push('  messages.push({ role: "user", content: prompt });');
+  L.push("  const reply = await client.chat.completions.create({");
+  L.push("    model: options.model || MODEL,");
+  L.push("    messages,");
+  L.push('    ...(options.json ? { response_format: { type: "json_object" } } : {}),');
+  L.push("    ...(options.temperature === undefined ? {} : { temperature: options.temperature }),");
+  L.push("  });");
+  L.push('  return (reply.choices[0].message.content ?? "").trim();');
+  L.push("}");
+
+  if (needs.each) {
+    L.push("");
+    L.push("/** A JSON array if it is one, otherwise split on blank lines. */");
+    L.push("function asList(value: unknown): string[] {");
+    L.push("  if (Array.isArray(value)) return value.map(String);");
+    L.push("  try {");
+    L.push("    const parsed = JSON.parse(String(value));");
+    L.push("    if (Array.isArray(parsed)) return parsed.map(String);");
+    L.push("  } catch {}");
+    L.push("  return String(value).split(/\\n{2,}/).map((part) => part.trim()).filter(Boolean);");
+    L.push("}");
+  }
+
+  if (needs.retry) {
+    L.push("");
+    L.push("/** A transient failure should not lose the whole run. */");
+    L.push("async function retry<T>(times: number, call: () => Promise<T>): Promise<T> {");
+    L.push("  for (let attempt = 0; ; attempt++) {");
+    L.push("    try {");
+    L.push("      return await call();");
+    L.push("    } catch (error) {");
+    L.push("      if (attempt >= times) throw error;");
+    L.push("      await new Promise((done) => setTimeout(done, 400 * (attempt + 1)));");
+    L.push("    }");
+    L.push("  }");
+    L.push("}");
+  }
+
+  if (needs.pool) {
+    L.push("");
+    L.push("/** Run over a list with a bounded number in flight: rate limits are real. */");
+    L.push("async function pool<T>(items: string[], width: number, call: (item: string) => Promise<T>): Promise<T[]> {");
+    L.push("  const out: T[] = new Array(items.length);");
+    L.push("  let next = 0;");
+    L.push("  const worker = async () => {");
+    L.push("    while (next < items.length) {");
+    L.push("      const k = next++;");
+    L.push("      out[k] = await call(items[k]);");
+    L.push("    }");
+    L.push("  };");
+    L.push("  await Promise.all(Array.from({ length: Math.min(width, items.length) }, worker));");
+    L.push("  return out;");
+    L.push("}");
+  }
+
+  if (tools.length) {
+    L.push("");
+    L.push("// --------------------------------------------------------------- tools");
+    if (needs.http) {
+      L.push("function q(value: unknown): string {");
+      L.push("  return encodeURIComponent(String(value));");
+      L.push("}");
+      L.push("");
+      L.push("async function http(url: string, method: string, headers: Record<string, string>, body: string | null): Promise<string> {");
+      L.push("  const response = await fetch(url, { method, headers, body: body ?? undefined });");
+      L.push("  const text = (await response.text()).slice(0, 4000);");
+      L.push("  if (!response.ok) throw new Error(`${response.status} ${response.statusText} \u2014 ${text.slice(0, 200)}`);");
+      L.push("  return text;");
+      L.push("}");
+      L.push("");
+    }
+    if (needs.calc) {
+      L.push("/** Arithmetic only. A model wrote this string, so it is parsed, never evaluated. */");
+      L.push("function calc(source: string): number {");
+      L.push('  const s = String(source ?? "").replace(/\\s+/g, "");');
+      L.push('  if (!s) throw new Error("empty expression");');
+      L.push("  let i = 0;");
+      L.push("  const at = () => s[i];");
+      L.push("  const expr = (): number => {");
+      L.push("    let value = term();");
+      L.push('    while (at() === "+" || at() === "-") {');
+      L.push("      const op = s[i++];");
+      L.push("      const right = term();");
+      L.push('      value = op === "+" ? value + right : value - right;');
+      L.push("    }");
+      L.push("    return value;");
+      L.push("  };");
+      L.push("  const term = (): number => {");
+      L.push("    let value = unary();");
+      L.push('    while (at() === "*" || at() === "/" || at() === "%") {');
+      L.push("      const op = s[i++];");
+      L.push("      const right = unary();");
+      L.push('      if ((op === "/" || op === "%") && right === 0) throw new Error("division by zero");');
+      L.push('      value = op === "*" ? value * right : op === "/" ? value / right : value % right;');
+      L.push("    }");
+      L.push("    return value;");
+      L.push("  };");
+      L.push("  const unary = (): number => {");
+      L.push('    if (at() === "-") { i++; return -unary(); }');
+      L.push('    if (at() === "+") { i++; return unary(); }');
+      L.push("    return power();");
+      L.push("  };");
+      L.push("  const power = (): number => {");
+      L.push("    const base = atom();");
+      L.push('    if (at() === "^" || (at() === "*" && s[i + 1] === "*")) {');
+      L.push('      i += at() === "^" ? 1 : 2;');
+      L.push("      return Math.pow(base, unary());");
+      L.push("    }");
+      L.push("    return base;");
+      L.push("  };");
+      L.push("  const atom = (): number => {");
+      L.push('    if (at() === "(") {');
+      L.push("      i++;");
+      L.push("      const value = expr();");
+      L.push('      if (s[i] !== ")") throw new Error("unbalanced brackets");');
+      L.push("      i++;");
+      L.push("      return value;");
+      L.push("    }");
+      L.push("    const m = /^\\d+(\\.\\d+)?([eE][+-]?\\d+)?/.exec(s.slice(i));");
+      L.push('    if (!m) throw new Error("unexpected " + JSON.stringify(s[i] ?? "end of expression"));');
+      L.push("    i += m[0].length;");
+      L.push("    return parseFloat(m[0]);");
+      L.push("  };");
+      L.push("  const out = expr();");
+      L.push('  if (i !== s.length) throw new Error("unexpected " + JSON.stringify(s[i]));');
+      L.push('  if (!Number.isFinite(out)) throw new Error("that is not a number");');
+      L.push("  return out;");
+      L.push("}");
+      L.push("");
+    }
+    for (const t of tools) { L.push(...tsTool(t)); L.push(""); }
+    L.push("const TOOL_SPECS: Record<string, any> = {");
+    for (const t of tools) L.push(`  ${JSON.stringify(t.name)}: ${JSON.stringify(toolSpec(t))},`);
+    L.push("};");
+    L.push("const TOOL_FUNCS: Record<string, (args: any) => Promise<string>> = {");
+    for (const t of tools) {
+      const call = Object.keys(t.params).map(p => `args[${JSON.stringify(p)}]`).join(", ");
+      L.push(`  ${JSON.stringify(t.name)}: (args) => tool_${t.name}(${call}),`);
+    }
+    L.push("};");
+  }
+
+  if (needs.agents) {
+    L.push("");
+    L.push("type AgentOptions = { system?: string; model?: string; tools?: string[]; maxSteps?: number };");
+    L.push("");
+    L.push("/** Think, call tools, read what came back, repeat until an answer arrives. */");
+    L.push("async function agent(goal: string, options: AgentOptions = {}): Promise<string> {");
+    L.push("  const messages: any[] = [];");
+    L.push('  if (options.system) messages.push({ role: "system", content: options.system });');
+    L.push('  messages.push({ role: "user", content: goal });');
+    L.push("  const specs = (options.tools ?? []).map((name) => TOOL_SPECS[name]);");
+    L.push("  const maxSteps = options.maxSteps ?? 6;");
+    L.push("  for (let turn = 0; turn < maxSteps; turn++) {");
+    L.push("    const reply = await client.chat.completions.create({");
+    L.push("      model: options.model || MODEL,");
+    L.push("      messages,");
+    L.push("      ...(specs.length ? { tools: specs } : {}),");
+    L.push("    });");
+    L.push("    const message = reply.choices[0].message as any;");
+    L.push("    const calls = message.tool_calls ?? [];");
+    L.push('    messages.push({ role: "assistant", content: message.content, ...(calls.length ? { tool_calls: calls } : {}) });');
+    L.push('    if (!calls.length) return (message.content ?? "").trim();');
+    L.push("    for (const call of calls) {");
+    L.push("      let result: string;");
+    L.push("      try {");
+    L.push('        const args = JSON.parse(call.function.arguments || "{}");');
+    L.push("        result = String(await TOOL_FUNCS[call.function.name](args));");
+    L.push("      } catch (error) {");
+    L.push('        result = "error: " + error;');
+    L.push("      }");
+    L.push('      messages.push({ role: "tool", tool_call_id: call.id, content: result.slice(0, 4000) });');
+    L.push("    }");
+    L.push("  }");
+    L.push("  throw new Error(`the agent used all ${maxSteps} steps without reaching an answer`);");
+    L.push("}");
+  }
+
+  // A used pipeline becomes its own function, deepest first, so it exists
+  // before anything calls it.
+  for (const sub of subPlans) {
+    L.push("");
+    L.push(`/** ${sub.name.replace(/\*\//g, "*\\/")}, used by this pipeline. */`);
+    L.push(`export async function ${sub.fn}(${sub.inputs.map(i => `${i}: string`).join(", ")}): Promise<unknown> {`);
+    L.push(...tsStepLines(sub));
+    L.push(`  return ${sub.output || "null"};`);
+    L.push("}");
+  }
+
+  const params = inputs.map(i => `${i}: string`).join(", ");
+  const args = inputs.join(", ");
+  L.push("");
+  if (needs.tests) L.push("/** Every step's value, which is what the checks need to see. */");
+  L.push(`export async function ${needs.tests ? "runAll" : "run"}(${params}): Promise<${
+    needs.tests ? "Record<string, unknown>" : "unknown"}> {`);
+  L.push(...tsStepLines(plan));
+
+  if (needs.tests) {
+    L.push(`  return { ${plan.steps.map(s => s.name).join(", ")} };`);
+    L.push("}");
+    L.push("");
+    L.push(`export async function run(${params}): Promise<unknown> {`);
+    L.push(plan.output
+      ? `  return (await runAll(${args}))[${JSON.stringify(plan.output)}];`
+      : `  await runAll(${args});\n  return null;`);
+    L.push("}");
+    L.push(...tsChecks(plan));
+  } else {
+    L.push(`  return ${plan.output || "null"};`);
+    L.push("}");
+  }
+
+  L.push("");
+  L.push("if (process.argv[1] === fileURLToPath(import.meta.url)) {");
+  if (needs.tests) {
+    L.push('  if (process.argv[2] === "test") {');
+    L.push("    process.exit(await runTests());");
+    L.push("  }");
+  }
+  if (inputs.length) {
+    L.push(`  const given = process.argv.slice(${needs.tests ? 2 : 2});`);
+    inputs.forEach((name, k) => L.push(`  const ${name}_in = given[${k}] ?? "";`));
+    L.push(`  console.log(await run(${inputs.map(i => i + "_in").join(", ")}));`);
+  } else {
+    L.push("  console.log(await run());");
+  }
+  L.push("}");
+  return L.join("\n") + "\n";
+}
+
+/* The cases, and a checker that says the same thing the page says. */
+function tsChecks(plan) {
+  const L = ["", "// --------------------------------------------------------------- tests"];
+  L.push("type Checks = Record<string, unknown>;");
+  L.push("const TESTS: { name: string; inputs: Record<string, string>; expect: Record<string, Checks> }[] =");
+  L.push("  " + JSON.stringify(plan.cases, null, 2).split("\n").join("\n  ") + ";");
+  L.push("");
+  L.push("/** Every failing check, not just the first. */");
+  L.push("function check(value: unknown, checks: Checks): string[] {");
+  L.push('  if (value === null || value === undefined) return ["never ran \u2014 the branch went another way"];');
+  L.push('  const got = (Array.isArray(value) ? value.join("\\n\\n") : String(value)).trim();');
+  L.push("  const low = got.toLowerCase();");
+  L.push("  const fails: string[] = [];");
+  L.push("  for (const [name, want] of Object.entries(checks)) {");
+  L.push("    const text = String(want).trim();");
+  L.push('    if (name === "equals" && low !== text.toLowerCase()) fails.push(`is not exactly ${JSON.stringify(want)}`);');
+  L.push('    else if (name === "contains" && !low.includes(text.toLowerCase())) fails.push(`does not contain ${JSON.stringify(want)}`);');
+  L.push('    else if (name === "not_contains" && low.includes(text.toLowerCase())) fails.push(`should not contain ${JSON.stringify(want)}`);');
+  L.push('    else if (name === "matches" && !new RegExp(text).test(got)) fails.push(`does not match ${JSON.stringify(want)}`);');
+  L.push('    else if (name === "is_one_of" && !(want as unknown[]).map((o) => String(o).trim().toLowerCase()).includes(low))');
+  L.push("      fails.push(`is not one of ${JSON.stringify(want)}`);");
+  L.push('    else if (name === "json" && isJson(got) !== Boolean(want))');
+  L.push('      fails.push(want ? "should be valid JSON" : "should not be JSON");');
+  L.push('    else if (name === "not_empty" && Boolean(got) !== Boolean(want))');
+  L.push('      fails.push(want ? "should not be empty" : "should be empty");');
+  for (const [checkName, def] of extraChecks(plan)) {
+    const cond = def.emit && def.emit.typescript;
+    if (cond) {
+      L.push(`    else if (name === ${JSON.stringify(checkName)} && !(${cond}))`);
+      L.push(`      fails.push(\`${def.failed.replace(/`/g, "\\`")} \${JSON.stringify(want)}\`);`);
+    } else {
+      L.push(`    else if (name === ${JSON.stringify(checkName)})`);
+      L.push(`      throw new Error(${JSON.stringify(`the ${checkName} check has no TypeScript form; add emit.typescript to the extension`)});`);
+    }
+  }
+  L.push("  }");
+  L.push("  return fails;");
+  L.push("}");
+  L.push("");
+  L.push("function isJson(text: string): boolean {");
+  L.push("  try {");
+  L.push("    JSON.parse(text);");
+  L.push("    return true;");
+  L.push("  } catch {");
+  L.push("    return false;");
+  L.push("  }");
+  L.push("}");
+  L.push("");
+  L.push("/** Run every case. Returns the number that failed, so it works as an exit code. */");
+  L.push("export async function runTests(): Promise<number> {");
+  L.push("  let failed = 0;");
+  L.push("  for (const testCase of TESTS) {");
+  L.push("    let values: Record<string, unknown>;");
+  L.push("    try {");
+  const callArgs = plan.inputs.map(i => `testCase.inputs[${JSON.stringify(i)}] ?? ""`).join(", ");
+  L.push(`      values = await runAll(${callArgs});`);
+  L.push("    } catch (error) {");
+  L.push("      failed++;");
+  L.push("      console.log(`FAIL ${testCase.name} \u2014 the run itself failed: ${error}`);");
+  L.push("      continue;");
+  L.push("    }");
+  L.push("    const problems: string[] = [];");
+  L.push("    for (const [target, checks] of Object.entries(testCase.expect))");
+  L.push("      for (const problem of check(values[target], checks)) problems.push(`    ${target} ${problem}`);");
+  L.push("    if (problems.length) {");
+  L.push("      failed++;");
+  L.push("      console.log(`FAIL ${testCase.name}`);");
+  L.push('      console.log(problems.join("\\n"));');
+  L.push("    } else {");
+  L.push("      console.log(`pass ${testCase.name}`);");
+  L.push("    }");
+  L.push("  }");
+  L.push("  console.log(`${TESTS.length - failed} of ${TESTS.length} passed`);");
+  L.push("  return failed;");
+  L.push("}");
+  return L;
+}
+
+/* Every language this can leave in. Adding one is a dialect, not a rewrite:
+   the plan above is shared, so they cannot disagree about the pipeline. */
+const DIALECTS = {
+  python: {
+    label: "Python", ext: "py", mime: "text/x-python", emit: exportPython,
+    needs: "It needs the <code>openai</code> package and nothing from Junction.",
+  },
+  typescript: {
+    label: "TypeScript", ext: "ts", mime: "text/typescript", emit: exportTypeScript,
+    needs: "It needs the <code>openai</code> package and nothing from Junction.",
+  },
+};
+
+/* What stops this language being written for this pipeline. A custom step or
+   tool that never learned a language is a refusal, not a broken file: emitting
+   something that will not compile is the one outcome worse than saying no. */
+function exportProblems(graph, lang) {
+  if (!DIALECTS[lang] || DIALECTS[lang].from) return [];   // an extension speaks for itself
+  const said = [];
+  for (const g of wholeTree(graph)) {
+    for (const n of g.nodes) {
+      const type = TYPES[n.type];
+      if (type && type.custom && !(type.emit && type.emit[lang]))
+        said.push(`the "${n.type}" step type cannot be written in ${DIALECTS[lang].label}`);
+      for (const name of n.uses || []) {
+        const tool = g.tools.get(name);
+        const kind = tool && TOOL_KINDS[tool.kind];
+        if (kind && kind.custom && !(kind.emit && kind.emit[lang]))
+          said.push(`the "${tool.kind}" tool kind cannot be written in ${DIALECTS[lang].label}`);
+      }
+    }
+  }
+  return [...new Set(said)];
+}
+
+function exportCode(graph, cfg, lang) {
+  return (DIALECTS[lang] || DIALECTS.python).emit(graph, cfg);
+}
+
+function normalizeChecks(checks) {
+  const out = {};
+  for (const [check, raw] of Object.entries(checks)) {
+    const def = CHECKS[check];
+    out[check] = def && def.value ? def.value(raw) : checkText(raw);
+  }
+  return out;
+}
+
+/* ============================================================ extensions
+   The registries above are open. An extension is an ES module you install by
+   URL, which adds checks and languages through a narrow API.
+
+   The line that matters: **a pipeline can never install one.** Not a document,
+   not a share link, not an example. Extensions come only from this panel, by
+   somebody typing a URL and pressing a button, and the test suite asserts that
+   opening a hostile pipeline installs nothing. That keeps the promise that has
+   always been here — nothing evaluates code you were sent — while letting you
+   run code you chose.
+
+   What it is not: a sandbox. An installed extension is code running in this
+   page, with the same reach as anything you npm install. Read it first. */
+const EXT_KEY = "junction.extensions";
+const EXT_API = 1;
+const BUILT_IN_CHECKS = Object.keys(CHECKS);
+
+const extensionList = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(EXT_KEY) || "[]");
+    return Array.isArray(raw) ? raw.filter(e => e && typeof e.url === "string") : [];
+  } catch (e) { return []; }
+};
+const saveExtensions = list => {
+  try { localStorage.setItem(EXT_KEY, JSON.stringify(list)); return true; }
+  catch (e) { toast("This browser will not store any more"); return false; }
+};
+
+const ident = s => /^[a-z][a-z0-9_]*$/.test(String(s || ""));
+
+/* The API an extension is handed. Every refusal is loud: a name it cannot have,
+   or a shape it did not fill in, is reported rather than half-registered. */
+function extensionApi(added) {
+  const claim = (kind, name, where) => {
+    if (!ident(name)) throw new Error(`${kind} name "${name}" must be lowercase letters, digits and _`);
+    if (where[name]) throw new Error(`${kind} "${name}" already exists \u2014 an extension cannot replace it`);
+  };
+  return {
+    version: EXT_API,
+    defineCheck(name, def) {
+      claim("check", name, CHECKS);
+      if (typeof (def || {}).test !== "function") throw new Error(`check "${name}" needs a test function`);
+      CHECKS[name] = {
+        label: String(def.label || name),
+        failed: String(def.failed || `did not pass ${name}`),
+        takes: String(def.takes || "text"),
+        test: def.test,
+        value: typeof def.value === "function" ? def.value : undefined,
+        describe: typeof def.describe === "function" ? def.describe : undefined,
+        emit: def.emit && typeof def.emit === "object" ? { ...def.emit } : null,
+        from: added.url,
+      };
+      added.checks.push(name);
+    },
+    defineLanguage(id, def) {
+      claim("language", id, DIALECTS);
+      if (typeof (def || {}).emit !== "function") throw new Error(`language "${id}" needs an emit function`);
+      for (const field of ["label", "ext", "mime"])
+        if (!String((def || {})[field] || "")) throw new Error(`language "${id}" needs a ${field}`);
+      DIALECTS[id] = {
+        label: String(def.label), ext: String(def.ext), mime: String(def.mime),
+        needs: String(def.needs || "Written by an extension, not by Junction."),
+        // Given the plan, not the graph: the plan is the contract that does not
+        // move, and it already carries the pipelines this one uses.
+        emit: (graph, cfg) => def.emit(pipelinePlan(graph), cfg),
+        from: added.url,
+      };
+      added.languages.push(id);
+    },
+    defineStep(type, def) {
+      claim("step type", type, TYPES);
+      if (typeof (def || {}).run !== "function") throw new Error(`step type "${type}" needs a run function`);
+      TYPES[type] = {
+        label: String(def.label || type),
+        needs: Array.isArray(def.needs) ? def.needs.map(String) : [],
+        run: def.run,
+        deps: typeof def.deps === "function" ? def.deps : null,
+        emit: def.emit && typeof def.emit === "object" ? { ...def.emit } : {},
+        custom: true, from: added.url,
+      };
+      added.steps.push(type);
+    },
+    defineTool(kind, def) {
+      claim("tool kind", kind, TOOL_KINDS);
+      if (typeof (def || {}).run !== "function") throw new Error(`tool kind "${kind}" needs a run function`);
+      TOOL_KINDS[kind] = {
+        label: String(def.label || kind),
+        params: def.params && typeof def.params === "object" ? { ...def.params } : {},
+        run: def.run,
+        emit: def.emit && typeof def.emit === "object" ? { ...def.emit } : {},
+        custom: true, from: added.url,
+      };
+      added.tools.push(kind);
+    },
+  };
+}
+
+async function loadExtension(url) {
+  const added = { url, checks: [], languages: [], steps: [], tools: [] };
+  const module = await import(/* @vite-ignore */ url);
+  const register = module && module.default;
+  if (typeof register !== "function")
+    throw new Error("an extension must export a default function");
+  register(extensionApi(added));
+  if (!registeredBy(added).length) throw new Error("it registered nothing");
+  return added;
+}
+
+const registeredBy = e => [...e.checks, ...e.languages, ...(e.steps || []), ...(e.tools || [])];
+
+/* Installed extensions, loaded at boot. One that throws is reported and skipped;
+   a broken extension must not take the page with it. */
+async function loadExtensions() {
+  for (const entry of extensionList()) {
+    try {
+      const added = await loadExtension(entry.url);
+      V.extensions.set(entry.url, { ...added, at: entry.at });
+    } catch (e) {
+      V.extensions.set(entry.url, { url: entry.url, at: entry.at, checks: [], languages: [], steps: [], tools: [], error: String(e.message || e) });
+    }
+  }
+  if (V.extensions.size) reparse();
+  renderExtensions();
+}
+
+async function installExtension(url) {
+  const clean = String(url || "").trim();
+  if (!clean) return toast("Paste the address of an extension first");
+  if (extensionList().some(e => e.url === clean)) return toast("That one is already installed");
+  let added;
+  try { added = await loadExtension(clean); }
+  catch (e) { return toast("Could not install it: " + (e.message || e)); }
+
+  const list = [...extensionList(), { url: clean, at: Date.now() }];
+  if (!saveExtensions(list)) return;
+  V.extensions.set(clean, { ...added, at: Date.now() });
+  renderExtensions(); reparse();
+  toast(`Added ${registeredBy(added).join(", ")}`);
+}
+
+/* Removing needs a reload: what an extension put into the registries cannot be
+   taken back out reliably, and pretending otherwise would leave half of it. */
+function removeExtension(url) {
+  if (!saveExtensions(extensionList().filter(e => e.url !== url))) return;
+  V.extensions.delete(url);
+  renderExtensions();
+  toast("Removed \u2014 reload the page to finish clearing it");
+}
+
+function renderExtensions() {
+  const box = $("extList");
+  if (!box) return;
+  const all = [...V.extensions.values()];
+  box.innerHTML = all.length ? all.map(e => `<div class="libitem">
+      <b>${esc(e.url.replace(/^https?:\/\//, "").slice(0, 60))}</b>
+      <span class="when">${e.error ? "failed" : registeredBy(e).join(", ")}</span>
+      <button class="btn danger" data-unext="${esc(e.url)}">Remove</button>
+      ${e.error ? `<div class="fe">${esc(e.error)}</div>` : ""}
+    </div>`).join("")
+    : `<p class="none">Nothing installed. An extension adds checks, languages, step types
+       and tool kinds; it is code you choose to run, with the same reach as anything you
+       install from npm, so read it before you trust it. A pipeline can never install one.</p>`;
 }
 
 /* ============================================================ wiring */
@@ -2330,10 +4016,25 @@ function writeRoutes(node) {
 
 $("ispClose").addEventListener("click", () => { V.sel = null; renderInspector(); renderGraph(); });
 
+// Fields the reader means as numbers. Written as numbers, so touching one in
+// the form does not quietly rewrite `retry: 2` as `retry: "2"`.
+const NUMERIC = new Set(["retry", "temperature", "max_steps", "concurrent"]);
+const fieldValue = (key, el) => {
+  if (el.type === "checkbox") return el.checked;
+  if (NUMERIC.has(key) && el.value.trim() !== "" && Number.isFinite(Number(el.value)))
+    return Number(el.value);
+  return el.value;
+};
+
 $("ispBody").addEventListener("change", e => {
   const n = V.sel && V.graph.byName.get(V.sel);
   if (!n) return;
   const el = e.target;
+  if (el.matches("[data-with]")) {
+    const given = { ...(n.step.with && typeof n.step.with === "object" ? n.step.with : {}) };
+    given[el.dataset.with] = el.value;
+    return applyField(n.name, "with", given);
+  }
   if (el.matches("[data-rename]")) {
     const to = el.value.trim();
     if (to === n.name) return;
@@ -2350,7 +4051,7 @@ $("ispBody").addEventListener("change", e => {
   if (el.matches("[data-route-key],[data-route-target]")) return writeRoutes(n);
   const key = el.dataset.key;
   if (!key) return;
-  applyField(n.name, key, el.type === "checkbox" ? el.checked : el.value);
+  applyField(n.name, key, fieldValue(key, el));
 });
 
 $("ispBody").addEventListener("click", e => {
@@ -2362,6 +4063,7 @@ $("ispBody").addEventListener("click", e => {
     return toast("Removed " + gone);
   }
   if (e.target.closest("[data-jump]")) { showTab("yaml"); return jumpToLine(V.keyLine.get("steps." + n.name)); }
+  if (e.target.closest("[data-runstep]")) return runStepAlone(n.name);
   if (e.target.closest("[data-gotools]")) return showTab("tools");
   const del = e.target.closest("[data-route-del]");
   if (del) { del.closest(".route").remove(); return writeRoutes(n); }
@@ -2475,8 +4177,14 @@ function decodePipeline(token) {
 $("bShare").addEventListener("click", async () => {
   const url = location.origin + location.pathname + "#p=" + encodePipeline($("yaml").value);
   if (url.length > 30000) return toast("Too big for a link \u2014 download the .yaml instead");
-  try { await navigator.clipboard.writeText(url); toast("Link copied \u2014 it carries the whole pipeline"); }
-  catch (e) { toast("Could not copy the link"); }
+  // A link carries this document, not the shelf it was standing on.
+  const borrowed = [...usedPipelines(V.graph).keys()];
+  try {
+    await navigator.clipboard.writeText(url);
+    toast(borrowed.length
+      ? `Link copied \u2014 but ${borrowed.join(" and ")} are saved here, not in the link`
+      : "Link copied \u2014 it carries the whole pipeline");
+  } catch (e) { toast("Could not copy the link"); }
 });
 
 addEventListener("keydown", e => {
@@ -2487,24 +4195,68 @@ addEventListener("keydown", e => {
   else if (k === "s") { e.preventDefault(); openLibrary(); }
 });
 $("bRun").addEventListener("click", runPipeline);
+$("bTest").addEventListener("click", runTests);
+$("runBody").addEventListener("click", e => {
+  const button = e.target.closest("[data-fix]");
+  if (button) applyFix(V.findings[Number(button.dataset.fix)]);
+});
 $("runClose").addEventListener("click", () => $("run").classList.remove("on"));
-$("bExport").addEventListener("click", () => {
-  $("exportCode").textContent = exportPython(V.graph, conn());
-  openModal("mExport");
+const LANG_KEY = "junction.lang";
+const currentLang = () => (DIALECTS[localStorage.getItem(LANG_KEY)] ? localStorage.getItem(LANG_KEY) : "python");
+
+function renderExport() {
+  const lang = currentLang();
+  const d = DIALECTS[lang];
+  $("langTabs").innerHTML = Object.entries(DIALECTS).map(([id, x]) =>
+    `<button class="tab${id === lang ? " on" : ""}" data-lang="${id}">${esc(x.label)}</button>`).join("");
+
+  const blocked = exportProblems(V.graph, lang);
+  $("expCopy").disabled = $("expDownload").disabled = blocked.length > 0;
+  if (blocked.length) {
+    $("exportNote").innerHTML = `This pipeline cannot be written in ${esc(d.label)}:
+      <b>${blocked.map(esc).join("; ")}</b>. The extension that added it has to teach it
+      this language, or choose another one above.`;
+    $("exportCode").textContent = "";
+    $("expDownload").textContent = "Download";
+    return;
+  }
+  $("exportNote").innerHTML = `This is plain ${esc(d.label)}. ${d.needs}
+    Delete this page tomorrow and your pipeline still runs.`;
+  $("exportCode").textContent = exportCode(V.graph, conn(), lang);
+  $("expDownload").textContent = "Download ." + d.ext;
+}
+
+$("bExport").addEventListener("click", () => { renderExport(); openModal("mExport"); });
+$("langTabs").addEventListener("click", e => {
+  const pick = e.target.closest("[data-lang]");
+  if (!pick) return;
+  try { localStorage.setItem(LANG_KEY, pick.dataset.lang); } catch (err) {}
+  renderExport();
 });
 $("expCopy").addEventListener("click", async () => {
   try { await navigator.clipboard.writeText($("exportCode").textContent); toast("Copied"); }
   catch (e) { toast("Copy failed \u2014 select it by hand"); }
 });
 $("expDownload").addEventListener("click", () => {
-  const blob = new Blob([$("exportCode").textContent], { type: "text/x-python" });
+  const d = DIALECTS[currentLang()];
+  const blob = new Blob([$("exportCode").textContent], { type: d.mime });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
-  a.download = (V.doc.name || "pipeline").replace(/\W+/g, "_").toLowerCase() + ".py";
+  a.download = (V.doc.name || "pipeline").replace(/\W+/g, "_").toLowerCase() + "." + d.ext;
   a.click(); URL.revokeObjectURL(a.href);
 });
 $("bExamples").addEventListener("click", () => openModal("mEx"));
 $("exClose").addEventListener("click", () => closeModal("mEx"));
+$("bExt").addEventListener("click", () => { renderExtensions(); openModal("mExt"); });
+$("extClose").addEventListener("click", () => closeModal("mExt"));
+$("extAdd").addEventListener("click", async () => {
+  await installExtension($("extUrl").value);
+  $("extUrl").value = "";
+});
+$("extList").addEventListener("click", e => {
+  const gone = e.target.closest("[data-unext]");
+  if (gone) removeExtension(gone.dataset.unext);
+});
 $("exList").innerHTML = EXAMPLES.map((e, i) =>
   `<button class="ex" data-i="${i}"><b>${esc(e.title)}</b><span>${esc(e.blurb)}</span></button>`).join("");
 $("exList").addEventListener("click", e => {
@@ -2553,6 +4305,8 @@ $("keyForget").addEventListener("click", () => {
       : "Opened from a link");
   }
   requestAnimationFrame(fitView);
+  // Last, and never from the document: whatever the reader installed themselves.
+  loadExtensions();
 })();
 </script>
 <script data-count="junction">
